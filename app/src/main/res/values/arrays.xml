@@ -61,4 +61,36 @@
         <item>@string/settings_record_name_formatting_3_display</item>
     </string-array>
 
+    <string-array name="grid_columns_portrait_entries" translatable="false">
+        <item>2 columns</item>
+        <item>3 columns</item>
+        <item>4 columns</item>
+        <item>5 columns</item>
+        <item>6 columns</item>
+    </string-array>
+    <string-array name="grid_columns_portrait_values" translatable="false">
+        <item>2</item>
+        <item>3</item>
+        <item>4</item>
+        <item>5</item>
+        <item>6</item>
+    </string-array>
+
+    <string-array name="grid_columns_landscape_entries" translatable="false">
+        <item>5 columns</item>
+        <item>6 columns</item>
+        <item>7 columns</item>
+        <item>8 columns</item>
+        <item>9 columns</item>
+        <item>10 columns</item>
+    </string-array>
+    <string-array name="grid_columns_landscape_values" translatable="false">
+        <item>5</item>
+        <item>6</item>
+        <item>7</item>
+        <item>8</item>
+        <item>9</item>
+        <item>10</item>
+    </string-array>
+
 </resources>

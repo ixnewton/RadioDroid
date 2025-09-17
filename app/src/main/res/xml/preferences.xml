@@ -36,6 +36,22 @@
             android:key="bottom_navigation"
             android:title="@string/settings_bottom_navigation" />
 
+        <ListPreference
+            android:defaultValue="4"
+            android:entries="@array/grid_columns_portrait_entries"
+            android:entryValues="@array/grid_columns_portrait_values"
+            android:key="grid_columns_portrait"
+            android:title="@string/settings_grid_columns_portrait"
+            android:summary="%s" />
+
+        <ListPreference
+            android:defaultValue="7"
+            android:entries="@array/grid_columns_landscape_entries"
+            android:entryValues="@array/grid_columns_landscape_values"
+            android:key="grid_columns_landscape"
+            android:title="@string/settings_grid_columns_landscape"
+            android:summary="%s" />
+
     </PreferenceScreen>
 
     <PreferenceScreen android:title="@string/settings_startup_behaviour"

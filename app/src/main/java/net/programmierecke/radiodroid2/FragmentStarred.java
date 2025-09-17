@@ -3,6 +3,7 @@ package net.programmierecke.radiodroid2;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.res.Configuration;
 import android.graphics.Color;
 import android.os.AsyncTask;
 import android.os.Bundle;
@@ -85,9 +86,9 @@ public class FragmentStarred extends Fragment implements IAdapterRefreshable, Ob
         if (sharedPref.getBoolean("load_icons", false) && sharedPref.getBoolean("icons_only_favorites_style", false)) {
             adapter = new ItemAdapterIconOnlyStation(getActivity(), R.layout.list_item_icon_only_station, StationsFilter.FilterType.LOCAL);
             Context ctx = getContext();
-            DisplayMetrics displayMetrics = ctx.getResources().getDisplayMetrics();
-            int itemWidth = (int) ctx.getResources().getDimension(R.dimen.regular_style_icon_container_width);
-            int noOfColumns = displayMetrics.widthPixels / itemWidth;
+            
+            // Get number of columns based on orientation and user preferences
+            int noOfColumns = getGridColumnsFromPreferences(ctx);
             GridLayoutManager glm = new GridLayoutManager(ctx, noOfColumns);
             rvStations.setAdapter(adapter);
             rvStations.setLayoutManager(glm);
@@ -240,5 +241,45 @@ public class FragmentStarred extends Fragment implements IAdapterRefreshable, Ob
     @Override
     public void update(Observable o, Object arg) {
         RefreshListGui();
+    }
+
+    @Override
+    public void onConfigurationChanged(Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        
+        // Update grid layout when orientation changes
+        if (rvStations != null && rvStations.getLayoutManager() instanceof GridLayoutManager) {
+            GridLayoutManager gridLayoutManager = (GridLayoutManager) rvStations.getLayoutManager();
+            int newColumnCount = getGridColumnsFromPreferences(getContext());
+            gridLayoutManager.setSpanCount(newColumnCount);
+            
+            // Notify adapter to recalculate sizes
+            if (rvStations.getAdapter() != null) {
+                rvStations.getAdapter().notifyDataSetChanged();
+            }
+        }
+    }
+
+    /**
+     * Get the number of grid columns based on orientation and user preferences
+     */
+    private int getGridColumnsFromPreferences(Context context) {
+        SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(context);
+        
+        // Check current orientation
+        int orientation = getResources().getConfiguration().orientation;
+        boolean isLandscape = (orientation == Configuration.ORIENTATION_LANDSCAPE);
+        
+        // Get preference value based on orientation
+        String prefKey = isLandscape ? "grid_columns_landscape" : "grid_columns_portrait";
+        String defaultValue = isLandscape ? "7" : "4";
+        
+        String columnsStr = sharedPref.getString(prefKey, defaultValue);
+        try {
+            return Integer.parseInt(columnsStr);
+        } catch (NumberFormatException e) {
+            // Fallback to default if parsing fails
+            return Integer.parseInt(defaultValue);
+        }
     }
 }

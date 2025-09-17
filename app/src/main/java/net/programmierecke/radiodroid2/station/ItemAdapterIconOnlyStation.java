@@ -1,6 +1,8 @@
 package net.programmierecke.radiodroid2.station;
 
 import android.content.SharedPreferences;
+import android.content.res.Configuration;
+import android.util.DisplayMetrics;
 import android.util.Log;
 import android.util.TypedValue;
 import android.view.ContextMenu;
@@ -78,6 +80,9 @@ public class ItemAdapterIconOnlyStation extends ItemAdapaterContextMenuStation i
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getContext().getApplicationContext());
         boolean useCircularIcons = Utils.useCircularIcons(getContext());
 
+        // Calculate dynamic icon size based on screen width and number of columns
+        calculateAndSetIconSize(holder);
+
         if (station.hasIcon()) {
             setupIcon(useCircularIcons, holder.imageViewIcon, holder.transparentImageView);
             PlayerServiceUtil.getStationIcon(holder.imageViewIcon, station.IconUrl);
@@ -99,6 +104,67 @@ public class ItemAdapterIconOnlyStation extends ItemAdapaterContextMenuStation i
     public void enableItemMove(RecyclerView recyclerView) {
         RecyclerItemMoveAndSwipeHelper swipeAndMoveHelper = new RecyclerItemMoveAndSwipeHelper<>(getContext(), ItemTouchHelper.UP | ItemTouchHelper.DOWN | ItemTouchHelper.LEFT | ItemTouchHelper.RIGHT, 0, this);
         new ItemTouchHelper(swipeAndMoveHelper).attachToRecyclerView(recyclerView);
+    }
+
+    /**
+     * Calculate and set dynamic icon size based on screen width and number of columns
+     */
+    private void calculateAndSetIconSize(ItemAdapterStation.StationViewHolder holder) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getContext().getApplicationContext());
+        
+        // Get number of columns based on orientation
+        int orientation = getContext().getResources().getConfiguration().orientation;
+        boolean isLandscape = (orientation == Configuration.ORIENTATION_LANDSCAPE);
+        String prefKey = isLandscape ? "grid_columns_landscape" : "grid_columns_portrait";
+        String defaultValue = isLandscape ? "7" : "4";
+        String columnsStr = prefs.getString(prefKey, defaultValue);
+        
+        int numColumns;
+        try {
+            numColumns = Integer.parseInt(columnsStr);
+        } catch (NumberFormatException e) {
+            numColumns = Integer.parseInt(defaultValue);
+        }
+        
+        // Calculate available width
+        DisplayMetrics displayMetrics = getContext().getResources().getDisplayMetrics();
+        int screenWidth = displayMetrics.widthPixels;
+        
+        // Calculate item width with small margins (8dp margin per side)
+        int marginDp = 8;
+        float density = displayMetrics.density;
+        int marginPx = (int) (marginDp * density);
+        int totalMargins = marginPx * 2 * numColumns; // 2 margins per item
+        
+        int availableWidth = screenWidth - totalMargins;
+        int itemWidth = availableWidth / numColumns;
+        
+        // Set frame layout size (container)
+        ViewGroup.LayoutParams frameParams = holder.frameLayout.getLayoutParams();
+        frameParams.width = itemWidth;
+        frameParams.height = itemWidth;
+        holder.frameLayout.setLayoutParams(frameParams);
+        
+        // Set icon size (80% of container size for nice padding)
+        int iconSize = (int) (itemWidth * 0.8f);
+        ViewGroup.LayoutParams iconParams = holder.imageViewIcon.getLayoutParams();
+        iconParams.width = iconSize;
+        iconParams.height = iconSize;
+        holder.imageViewIcon.setLayoutParams(iconParams);
+        
+        // Set transparent circle size to match icon
+        ViewGroup.LayoutParams circleParams = holder.transparentImageView.getLayoutParams();
+        circleParams.width = iconSize;
+        circleParams.height = iconSize;
+        holder.transparentImageView.setLayoutParams(circleParams);
+        
+        // Set margins on the root view for spacing
+        ViewGroup.MarginLayoutParams rootParams = (ViewGroup.MarginLayoutParams) holder.itemView.getLayoutParams();
+        if (rootParams == null) {
+            rootParams = new ViewGroup.MarginLayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        }
+        rootParams.setMargins(marginPx, marginPx, marginPx, marginPx);
+        holder.itemView.setLayoutParams(rootParams);
     }
 }
 

@@ -100,6 +100,10 @@
     <string name="settings_compact_style_desc_off">Large icon adopted with station details</string>
     <string name="settings_compact_style_desc_on">Small icon adopted without station details</string>
     <string name="settings_bottom_navigation">Bottom navigation</string>
+    <string name="settings_grid_columns_portrait">Grid columns (Portrait)</string>
+    <string name="settings_grid_columns_portrait_desc">Number of columns in portrait mode</string>
+    <string name="settings_grid_columns_landscape">Grid columns (Landscape)</string>
+    <string name="settings_grid_columns_landscape_desc">Number of columns in landscape mode</string>
 
     <string name="settings_interaction">Interaction</string>
     <string name="settings_single_use_tags">Show rarely-used tags</string>

@@ -10,16 +10,14 @@ import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
-import android.support.v4.media.MediaBrowserCompat;
-import android.support.v4.media.MediaDescriptionCompat;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-
 import android.support.v4.media.MediaBrowserCompat;
 import androidx.media.MediaBrowserServiceCompat;
 import android.support.v4.media.MediaDescriptionCompat;
 import android.support.v4.media.MediaMetadataCompat;
+
 import android.text.TextUtils;
 
 import com.squareup.picasso.Picasso;

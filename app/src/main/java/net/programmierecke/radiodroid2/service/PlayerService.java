@@ -984,6 +984,18 @@ public class PlayerService extends JobIntentService implements RadioPlayer.Playe
     }
 
     private void updateNotification(PlayState playState) {
+        if (currentStation == null) {
+            return;
+        }
+
+        MediaMetadataCompat.Builder metadataBuilder = new MediaMetadataCompat.Builder();
+        metadataBuilder.putString(MediaMetadataCompat.METADATA_KEY_TITLE, currentStation.Name);
+        if (liveInfo.getArtist() != null) {
+            metadataBuilder.putString(MediaMetadataCompat.METADATA_KEY_ARTIST, liveInfo.getArtist());
+        }
+        metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, radioIcon.getBitmap());
+        mediaSession.setMetadata(metadataBuilder.build());
+
         switch (playState) {
             case Idle:
                 NotificationManagerCompat notificationManager = NotificationManagerCompat.from(this);

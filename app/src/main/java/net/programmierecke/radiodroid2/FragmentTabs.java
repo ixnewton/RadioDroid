@@ -114,37 +114,26 @@ public class FragmentTabs extends Fragment implements IFragmentRefreshable, IFra
         tabLayout.setVisibility(View.GONE);
     }
 
-    private String getCountryCode() {
+    private void setupViewPager(ViewPager viewPager) {
         Context ctx = getContext();
         String countryCode = null;
         if (ctx != null) {
             TelephonyManager tm = (TelephonyManager) ctx.getSystemService(Context.TELEPHONY_SERVICE);
             countryCode = tm.getNetworkCountryIso();
-            Log.d("MAIN", "Network country code: '" + countryCode + "'");
-            if (countryCode != null && countryCode.length() == 2) {
-                return countryCode;
+            if (countryCode == null) {
+                countryCode = tm.getSimCountryIso();
             }
-            countryCode = tm.getSimCountryIso();
-            Log.d("MAIN", "Sim country code: '" + countryCode + "'");
-            if (countryCode != null && countryCode.length() == 2) {
-                return countryCode;
-            }
-            countryCode = ctx.getResources().getConfiguration().locale.getCountry();
-            addresses[IDX_LOCAL] = "json/stations/bycountrycodeexact/?order=clickcount&reverse=true";
-            Log.d("MAIN", "Locale: '" + countryCode + "'");
-            if (countryCode != null && countryCode.length() == 2) {
-                return countryCode;
+            if (countryCode != null) {
+                if (countryCode.length() == 2) {
+                    Log.d("MAIN", "Found countrycode " + countryCode);
+                    addresses[IDX_LOCAL] = "json/stations/bycountrycodeexact/" + countryCode + "?order=clickcount&reverse=true";
+                }else{
+                    Log.e("MAIN", "countrycode length != 2");
+                }
+            }else{
+                Log.e("MAIN", "device countrycode and sim countrycode are null");
             }
         }
-        return null;
-    }
-
-    private void setupViewPager(ViewPager viewPager) {
-        String countryCode = getCountryCode();
-        if (countryCode != null){
-            addresses[IDX_LOCAL] = "json/stations/bycountrycodeexact/" + countryCode + "?order=clickcount&reverse=true";
-        }
-
         fragments[IDX_LOCAL] = new FragmentStations();
         fragments[IDX_TOP_CLICK] = new FragmentStations();
         fragments[IDX_TOP_VOTE] = new FragmentStations();

@@ -55,8 +55,7 @@ public class FragmentHistory extends Fragment implements IAdapterRefreshable {
 
         if (BuildConfig.DEBUG) Log.d(TAG, "stations count:" + historyManager.listStations.size());
 
-        if( adapter != null )
-            adapter.updateList(null, historyManager.listStations);
+        adapter.updateList(null, historyManager.listStations);
     }
 
     @Override

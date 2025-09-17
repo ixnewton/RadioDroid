@@ -1,6 +1,5 @@
 package net.programmierecke.radiodroid2.recording;
 
-import android.app.ProgressDialog;
 import android.content.ClipData;
 import android.content.Context;
 import android.content.Intent;
@@ -96,7 +95,6 @@ public class RecordingsAdapter extends RecyclerView.Adapter<RecordingsAdapter.Re
     }
 
     void openRecording(DataRecording theData) {
-        ProgressDialog dialog = ProgressDialog.show(context, "Loading...", "Please wait...", true, false);
         String path = RecordingsManager.getRecordDir() + "/" + theData.Name;
         if (BuildConfig.DEBUG) {
             Log.d(TAG, "play: " + path);
@@ -123,11 +121,9 @@ public class RecordingsAdapter extends RecyclerView.Adapter<RecordingsAdapter.Re
                 String packageName = resolveInfo.activityInfo.packageName;
                 context.grantUriPermission(packageName, fileUri,
                         Intent.FLAG_GRANT_WRITE_URI_PERMISSION | Intent.FLAG_GRANT_READ_URI_PERMISSION);
-                dialog.dismiss();
             }
         }
 
         context.startActivity(i);
-        dialog.dismiss();
     }
 }

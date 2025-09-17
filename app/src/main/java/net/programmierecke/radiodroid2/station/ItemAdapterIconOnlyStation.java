@@ -14,7 +14,7 @@ import androidx.preference.PreferenceManager;
 import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.github.zawadz88.materialpopupmenu.MaterialPopupMenu;
+import androidx.appcompat.widget.PopupMenu;
 
 import net.programmierecke.radiodroid2.R;
 import net.programmierecke.radiodroid2.Utils;
@@ -25,7 +25,7 @@ import net.programmierecke.radiodroid2.utils.SwipeableViewHolder;
 public class ItemAdapterIconOnlyStation extends ItemAdapaterContextMenuStation implements RecyclerItemMoveAndSwipeHelper.MoveAndSwipeCallback<ItemAdapterStation.StationViewHolder> {
 
     class StationViewHolder extends ItemAdapterStation.StationViewHolder implements View.OnClickListener, View.OnCreateContextMenuListener, SwipeableViewHolder {
-        MaterialPopupMenu contextMenu = null;
+        PopupMenu contextMenu = null;
 
         StationViewHolder(View itemView) {
             super(itemView);
@@ -52,9 +52,8 @@ public class ItemAdapterIconOnlyStation extends ItemAdapaterContextMenuStation i
             int pos = getAdapterPosition();
             DataRadioStation station = filteredStationsList.get(pos);
             contextMenu = StationPopupMenu.INSTANCE.open(v, getContext(), activity, station, ItemAdapterIconOnlyStation.this);
-            contextMenu.setOnDismissListener(() -> {
+            contextMenu.setOnDismissListener(popup -> {
                 dismissContextMenu();
-                return null;
             });
         }
     }

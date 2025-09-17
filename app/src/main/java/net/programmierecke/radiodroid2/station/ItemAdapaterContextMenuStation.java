@@ -6,7 +6,7 @@ import android.view.View;
 import androidx.fragment.app.FragmentActivity;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.github.zawadz88.materialpopupmenu.MaterialPopupMenu;
+import androidx.appcompat.widget.PopupMenu;
 
 import net.programmierecke.radiodroid2.utils.RecyclerItemMoveAndSwipeHelper;
 import net.programmierecke.radiodroid2.utils.SwipeableViewHolder;
@@ -16,7 +16,7 @@ public class ItemAdapaterContextMenuStation extends ItemAdapterStation implement
     private static final long MIN_INTERVAL_BETWEEN_DRAG_AND_MENU_OPEN = 200;
     private final double DISMISS_MENU_DRAG_THRESHOLD = 0.15;
     private final long NEVER_IN_THE_FUTURE = Long.MAX_VALUE / 2;
-    MaterialPopupMenu contextMenu = null;
+    PopupMenu contextMenu = null;
     private RecyclerItemMoveAndSwipeHelper<ItemAdapterStation.StationViewHolder> swipeAndMoveHelper = null;
     private long timeLastDragEnded = 0;
 

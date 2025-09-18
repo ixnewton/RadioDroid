@@ -130,8 +130,8 @@ public class ItemAdapterIconOnlyStation extends ItemAdapaterContextMenuStation i
         DisplayMetrics displayMetrics = getContext().getResources().getDisplayMetrics();
         int screenWidth = displayMetrics.widthPixels;
         
-        // Calculate item width with small margins (8dp margin per side)
-        int marginDp = 8;
+        // Calculate item width with no margins for regular layout
+        int marginDp = 0;
         float density = displayMetrics.density;
         int marginPx = (int) (marginDp * density);
         int totalMargins = marginPx * 2 * numColumns; // 2 margins per item

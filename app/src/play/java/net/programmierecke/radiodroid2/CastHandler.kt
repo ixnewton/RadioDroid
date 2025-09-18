@@ -61,6 +61,10 @@ private class CastAvailable(val castContext: CastContext,
                             val sessionManagerListener: SessionManagerListener<Session>,
                             var castSession: CastSession?) : CastState() {
     private var activity: CastAwareActivity? = null
+    
+    companion object {
+        private const val TAG = "CastHandler.CastAvailable"
+    }
 
     override fun setActivity(activity: CastAwareActivity?) {
         this.activity = activity
@@ -104,15 +108,40 @@ private class CastAvailable(val castContext: CastContext,
     override fun play(title: String, url: String, iconurl: String?) {
         val movieMetadata = MediaMetadata(MediaMetadata.MEDIA_TYPE_MUSIC_TRACK)
         movieMetadata.putString(MediaMetadata.KEY_TITLE, title)
-        movieMetadata.addImage(WebImage(Uri.parse(iconurl)))
+        movieMetadata.putString(MediaMetadata.KEY_ARTIST, "RadioDroid")
+        movieMetadata.putString(MediaMetadata.KEY_ALBUM_TITLE, "Live Radio Stream")
+        
+        if (!iconurl.isNullOrEmpty()) {
+            try {
+                movieMetadata.addImage(WebImage(Uri.parse(iconurl)))
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to add image to metadata: ${e.message}")
+            }
+        }
+
+        // Determine content type based on URL or use generic audio stream type
+        val contentType = when {
+            url.contains(".m3u8") -> "application/x-mpegURL"
+            url.contains(".mp3") -> "audio/mpeg"
+            url.contains(".aac") -> "audio/aac"
+            url.contains(".ogg") -> "audio/ogg"
+            url.contains(".opus") -> "audio/opus"
+            else -> "audio/*" // Generic audio type for unknown formats
+        }
 
         val mediaInfo = MediaInfo.Builder(url)
                 .setStreamType(MediaInfo.STREAM_TYPE_LIVE)
-                .setContentType("audio/ogg")
+                .setContentType(contentType)
                 .setMetadata(movieMetadata)
                 .build()
 
-        castSession?.remoteMediaClient?.load(mediaInfo, true)
+        castSession?.remoteMediaClient?.load(mediaInfo, true)?.setResultCallback { result ->
+            if (result.status.isSuccess) {
+                Log.i(TAG, "Media loaded successfully on Cast device")
+            } else {
+                Log.e(TAG, "Failed to load media on Cast device: ${result.status}")
+            }
+        }
     }
 
     private fun invalidateOptions() {
@@ -147,7 +176,8 @@ public class CastHandler {
             val result = googleAPI.isGooglePlayServicesAvailable(context)
 
             if (result == ConnectionResult.SUCCESS) {
-                val castContext = CastContext.getSharedInstance(context)
+                val castExecutor = java.util.concurrent.Executors.newSingleThreadExecutor()
+                val castContext = CastContext.getSharedInstance(context, castExecutor).result
                 val castState = CastAvailable(
                         castContext = castContext,
                         sessionManager = castContext.sessionManager,
@@ -158,9 +188,12 @@ public class CastHandler {
                 castState.sessionManager.addSessionManagerListener(castState.sessionManagerListener)
 
                 this.castState = castState
+                Log.i(TAG, "Cast framework initialized successfully")
+            } else {
+                Log.w(TAG, "Google Play Services not available: $result")
             }
         } catch (e: Exception) {
-            Log.e(TAG, e.toString())
+            Log.e(TAG, "Failed to initialize Cast framework: ${e.message}", e)
         }
     }
 
@@ -184,6 +217,16 @@ public class CastHandler {
         return CastButtonFactory.setUpMediaRouteButton(context,
                 menu,
                 R.id.media_route_menu_item)
+    }
+    
+    fun setupMediaRouteButton(context: Context, button: androidx.mediarouter.app.MediaRouteButton) {
+        // Always show Cast button if Cast framework is available, regardless of device detection
+        if (castState is CastAvailable) {
+            CastButtonFactory.setUpMediaRouteButton(context, button)
+            button.visibility = android.view.View.VISIBLE
+        } else {
+            button.visibility = android.view.View.GONE
+        }
     }
 
     fun playRemote(title: String, url: String, iconurl: String?) {

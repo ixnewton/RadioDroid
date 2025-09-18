@@ -169,11 +169,58 @@ public class RadioDroidBrowser {
 
     @Nullable
     public MediaBrowserServiceCompat.BrowserRoot onGetRoot(@NonNull String clientPackageName, int clientUid, @Nullable Bundle rootHints) {
-        return new MediaBrowserServiceCompat.BrowserRoot(MEDIA_ID_ROOT, null);
+        android.util.Log.d("RadioDroidBrowser", "onGetRoot: package=" + clientPackageName + ", uid=" + clientUid);
+        
+        // Allow Android Auto and other trusted media clients
+        if (isValidPackage(clientPackageName, clientUid)) {
+            android.util.Log.d("RadioDroidBrowser", "Allowing access for: " + clientPackageName);
+            return new MediaBrowserServiceCompat.BrowserRoot(MEDIA_ID_ROOT, null);
+        }
+        
+        // Return empty root for untrusted clients (they can connect but can't browse)
+        android.util.Log.d("RadioDroidBrowser", "Denying browse access for: " + clientPackageName);
+        return new MediaBrowserServiceCompat.BrowserRoot("__EMPTY_ROOT__", null);
+    }
+    
+    private boolean isValidPackage(String clientPackageName, int clientUid) {
+        // Allow Android Auto
+        if ("com.google.android.projection.gearhead".equals(clientPackageName)) {
+            return true;
+        }
+        
+        // Allow Android Auto for phone screens
+        if ("com.google.android.gms".equals(clientPackageName)) {
+            return true;
+        }
+        
+        // Allow other common media clients
+        if ("com.android.bluetooth".equals(clientPackageName)) {
+            return true;
+        }
+        
+        // Allow Wear OS
+        if ("com.google.android.wearable.app".equals(clientPackageName)) {
+            return true;
+        }
+        
+        // Allow the app itself
+        if ("net.programmierecke.radiodroid2".equals(clientPackageName)) {
+            return true;
+        }
+        
+        // You can add more trusted package names here
+        return false;
     }
 
     public void onLoadChildren(@NonNull String parentId, @NonNull MediaBrowserServiceCompat.Result<List<MediaBrowserCompat.MediaItem>> result) {
         Resources resources = radioDroidApp.getResources();
+        
+        // Handle empty root for untrusted clients
+        if ("__EMPTY_ROOT__".equals(parentId)) {
+            result.sendResult(new ArrayList<>());
+            return;
+        }
+        
         if (MEDIA_ID_ROOT.equals(parentId)) {
             result.sendResult(createBrowsableMediaItemsForRoot(resources));
             return;

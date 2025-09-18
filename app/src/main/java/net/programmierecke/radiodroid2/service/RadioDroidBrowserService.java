@@ -54,6 +54,7 @@ public class RadioDroidBrowserService extends MediaBrowserServiceCompat {
     @Override
     public void onCreate() {
         super.onCreate();
+        android.util.Log.d("RadioDroidBrowserService", "MediaBrowserService created");
 
         radioDroidBrowser = new RadioDroidBrowser((RadioDroidApp) getApplication());
 

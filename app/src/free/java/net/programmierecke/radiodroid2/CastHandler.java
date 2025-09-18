@@ -43,4 +43,9 @@ public class CastHandler {
     public void playRemote(String title, String url, String iconurl) {
 
     }
+    
+    public void setupMediaRouteButton(android.content.Context context, androidx.mediarouter.app.MediaRouteButton button) {
+        // Hide Cast button in free version
+        button.setVisibility(android.view.View.GONE);
+    }
 }

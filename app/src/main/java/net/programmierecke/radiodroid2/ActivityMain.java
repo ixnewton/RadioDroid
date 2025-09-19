@@ -55,6 +55,7 @@ import com.rustamg.filedialogs.SaveFileDialog;
 import net.programmierecke.radiodroid2.alarm.FragmentAlarm;
 import net.programmierecke.radiodroid2.alarm.TimePickerFragment;
 import net.programmierecke.radiodroid2.cast.CastAwareActivity;
+import net.programmierecke.radiodroid2.FragmentStarred;
 import net.programmierecke.radiodroid2.interfaces.IFragmentSearchable;
 import net.programmierecke.radiodroid2.players.PlayState;
 import net.programmierecke.radiodroid2.players.PlayStationTask;
@@ -567,6 +568,9 @@ public class ActivityMain extends AppCompatActivity implements SearchView.OnQuer
             appBarLayout.setExpanded(false);
         }
 
+        // Check for Android Auto mode changes and adjust UI accordingly
+        handleAndroidAutoModeChange();
+
         Intent intent = getIntent();
         if (intent != null) {
             handleIntent(intent);
@@ -908,6 +912,22 @@ public class ActivityMain extends AppCompatActivity implements SearchView.OnQuer
         HistoryManager hm = radioDroidApp.getHistoryManager();
         FavouriteManager fm = radioDroidApp.getFavouriteManager();
 
+        // Check if running in Android Auto mode
+        if (Utils.isAndroidAutoMode(this)) {
+            // Enable icons view for favorites in Android Auto mode
+            sharedPref.edit().putBoolean("icons_only_favorites_style", true).apply();
+            
+            // Always show favorites in Android Auto mode if they exist
+            if (!fm.isEmpty()) {
+                selectMenuItem(R.id.nav_item_starred);
+                return;
+            } else {
+                // If no favorites, show stations
+                selectMenuItem(R.id.nav_item_stations);
+                return;
+            }
+        }
+
         final String startupAction = sharedPref.getString("startup_action", getResources().getString(R.string.startup_show_history));
 
         if (startupAction.equals(getResources().getString(R.string.startup_show_history)) && hm.isEmpty()) {
@@ -1169,5 +1189,29 @@ public class ActivityMain extends AppCompatActivity implements SearchView.OnQuer
     @Override
     public void invalidateOptionsMenuForCast() {
         invalidateOptionsMenu();
+    }
+
+    /**
+     * Handle Android Auto mode changes and adjust UI accordingly
+     */
+    private void handleAndroidAutoModeChange() {
+        if (Utils.isAndroidAutoMode(this)) {
+            // Enable icons view for favorites in Android Auto mode
+            boolean currentIconsOnlyStyle = sharedPref.getBoolean("icons_only_favorites_style", false);
+            if (!currentIconsOnlyStyle) {
+                sharedPref.edit().putBoolean("icons_only_favorites_style", true).apply();
+                
+                // If currently showing favorites, refresh to apply icon view
+                if (selectedMenuItem == R.id.nav_item_starred) {
+                    Fragment currentFragment = mFragmentManager.getFragments().get(mFragmentManager.getFragments().size() - 1);
+                    if (currentFragment instanceof FragmentStarred) {
+                        // Recreate the fragment to apply the new view style
+                        FragmentTransaction fragmentTransaction = mFragmentManager.beginTransaction();
+                        fragmentTransaction.replace(R.id.containerView, new FragmentStarred());
+                        fragmentTransaction.commit();
+                    }
+                }
+            }
+        }
     }
 }

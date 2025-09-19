@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
+### Added
+- Android Auto support: Favorites icon view is automatically enabled and set as default when running in Android Auto mode
+- Dynamic Android Auto mode detection for seamless switching between car and regular modes
 
 ## [0.86] - 2023-09-28
 ### Added

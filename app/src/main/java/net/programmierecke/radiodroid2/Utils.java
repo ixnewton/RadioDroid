@@ -630,4 +630,14 @@ public class Utils {
 
         return client;
     }
+
+    /**
+     * Check if the app is running in Android Auto mode
+     * @param context The application context
+     * @return true if running in Android Auto mode, false otherwise
+     */
+    public static boolean isAndroidAutoMode(Context context) {
+        android.app.UiModeManager uiModeManager = (android.app.UiModeManager) context.getSystemService(Context.UI_MODE_SERVICE);
+        return uiModeManager != null && uiModeManager.getCurrentModeType() == android.content.res.Configuration.UI_MODE_TYPE_CAR;
+    }
 }

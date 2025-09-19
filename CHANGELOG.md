@@ -6,13 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 ### Added
 - Android Auto support: Favorites view is automatically set as default when running in Android Auto mode
-- Respects user's preferred view format (list or icons) for favorites in Android Auto
+- Forces icon matrix display for optimal car interface usability in Android Auto mode (list view disabled)
 - Dynamic Android Auto mode detection for seamless switching between car and regular modes
 
 ### Fixed
 - Favorites icon view now works correctly regardless of "Load Icons" setting - respects user's icon view preference
 - Play bar buttons now properly reflect play status with more accurate state handling (Playing, PrePlaying, Paused, Idle)
-- Android Auto now defaults to icon view for better car interface usability when user hasn't explicitly set a preference
 - Fixed missing click handling in favorites icon view - stations can now be selected properly in Android Auto mode
 
 ## [0.86] - 2023-09-28

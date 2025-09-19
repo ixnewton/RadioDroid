@@ -130,13 +130,17 @@ public class ItemAdapterIconOnlyStation extends ItemAdapaterContextMenuStation i
         DisplayMetrics displayMetrics = getContext().getResources().getDisplayMetrics();
         int screenWidth = displayMetrics.widthPixels;
         
-        // Calculate item width with no margins for regular layout
-        int marginDp = 0;
+        // Account for RecyclerView padding (8dp left + 8dp right = 16dp total)
+        int recyclerViewPaddingDp = 16;
         float density = displayMetrics.density;
+        int recyclerViewPaddingPx = (int) (recyclerViewPaddingDp * density);
+        
+        // Calculate item width with no individual margins (RecyclerView handles grid margins)
+        int marginDp = 0;
         int marginPx = (int) (marginDp * density);
         int totalMargins = marginPx * 2 * numColumns; // 2 margins per item
         
-        int availableWidth = screenWidth - totalMargins;
+        int availableWidth = screenWidth - recyclerViewPaddingPx - totalMargins;
         int itemWidth = availableWidth / numColumns;
         
         // Set frame layout size (container)

@@ -87,6 +87,10 @@ public class FragmentStarred extends Fragment implements IAdapterRefreshable, Ob
             adapter = new ItemAdapterIconOnlyStation(getActivity(), R.layout.list_item_icon_only_station, StationsFilter.FilterType.LOCAL);
             Context ctx = getContext();
             
+            // Add padding for grid view (8dp left, right, and top)
+            int paddingPx = (int) (8 * getResources().getDisplayMetrics().density);
+            rvStations.setPadding(paddingPx, paddingPx, paddingPx, rvStations.getPaddingBottom());
+            
             // Get number of columns based on orientation and user preferences
             int noOfColumns = getGridColumnsFromPreferences(ctx);
             GridLayoutManager glm = new GridLayoutManager(ctx, noOfColumns);
@@ -95,6 +99,10 @@ public class FragmentStarred extends Fragment implements IAdapterRefreshable, Ob
             ((ItemAdapterIconOnlyStation)adapter).enableItemMove(rvStations);
         } else {
             adapter = new ItemAdapterStation(getActivity(), R.layout.list_item_station, StationsFilter.FilterType.LOCAL);
+            
+            // Reset padding for list view (no extra padding needed)
+            rvStations.setPadding(0, 0, 0, rvStations.getPaddingBottom());
+            
             LinearLayoutManager llm = new LinearLayoutManager(getContext());
             llm.setOrientation(RecyclerView.VERTICAL);
 

@@ -83,7 +83,15 @@ public class FragmentStarred extends Fragment implements IAdapterRefreshable, Ob
 
         ItemAdapterStation adapter;
         SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(getContext());
-        if (sharedPref.getBoolean("load_icons", false) && sharedPref.getBoolean("icons_only_favorites_style", false)) {
+        boolean useIconView = sharedPref.getBoolean("icons_only_favorites_style", false);
+        boolean loadIcons = sharedPref.getBoolean("load_icons", true);
+        
+        if (BuildConfig.DEBUG) {
+            Log.d(TAG, "FragmentStarred: useIconView=" + useIconView + ", loadIcons=" + loadIcons + 
+                ", isAndroidAuto=" + Utils.isAndroidAutoMode(getContext()));
+        }
+        
+        if (useIconView) {
             adapter = new ItemAdapterIconOnlyStation(getActivity(), R.layout.list_item_icon_only_station, StationsFilter.FilterType.LOCAL);
             Context ctx = getContext();
             

@@ -17,6 +17,7 @@ import androidx.preference.PreferenceManager;
 
 import net.programmierecke.radiodroid2.history.TrackHistoryRepository;
 import net.programmierecke.radiodroid2.players.mpd.MPDClient;
+import net.programmierecke.radiodroid2.players.PlayState;
 import net.programmierecke.radiodroid2.service.PauseReason;
 import net.programmierecke.radiodroid2.service.PlayerService;
 import net.programmierecke.radiodroid2.service.PlayerServiceUtil;
@@ -229,12 +230,27 @@ public class FragmentPlayerSmall extends Fragment {
     }
 
     private void fullUpdate() {
-        if (PlayerServiceUtil.isPlaying()) {
-            buttonPlay.setImageResource(R.drawable.ic_pause_circle);
-            buttonPlay.setContentDescription(getResources().getString(R.string.detail_pause));
-        } else {
-            buttonPlay.setImageResource(R.drawable.ic_play_circle);
-            buttonPlay.setContentDescription(getResources().getString(R.string.detail_play));
+        PlayState currentState = PlayerServiceUtil.getPlayerState();
+        
+        switch (currentState) {
+            case Playing:
+                buttonPlay.setImageResource(R.drawable.ic_pause_circle);
+                buttonPlay.setContentDescription(getResources().getString(R.string.detail_pause));
+                break;
+            case PrePlaying:
+                // Show pause icon during buffering/loading since user can pause
+                buttonPlay.setImageResource(R.drawable.ic_pause_circle);
+                buttonPlay.setContentDescription(getResources().getString(R.string.detail_pause));
+                break;
+            case Paused:
+                buttonPlay.setImageResource(R.drawable.ic_play_circle);
+                buttonPlay.setContentDescription(getResources().getString(R.string.detail_play));
+                break;
+            case Idle:
+            default:
+                buttonPlay.setImageResource(R.drawable.ic_play_circle);
+                buttonPlay.setContentDescription(getResources().getString(R.string.detail_play));
+                break;
         }
 
         DataRadioStation station = Utils.getCurrentOrLastStation(requireContext());

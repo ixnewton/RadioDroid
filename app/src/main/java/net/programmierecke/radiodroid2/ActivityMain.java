@@ -55,7 +55,6 @@ import com.rustamg.filedialogs.SaveFileDialog;
 import net.programmierecke.radiodroid2.alarm.FragmentAlarm;
 import net.programmierecke.radiodroid2.alarm.TimePickerFragment;
 import net.programmierecke.radiodroid2.cast.CastAwareActivity;
-import net.programmierecke.radiodroid2.FragmentStarred;
 import net.programmierecke.radiodroid2.interfaces.IFragmentSearchable;
 import net.programmierecke.radiodroid2.players.PlayState;
 import net.programmierecke.radiodroid2.players.PlayStationTask;
@@ -914,8 +913,23 @@ public class ActivityMain extends AppCompatActivity implements SearchView.OnQuer
 
         // Check if running in Android Auto mode
         if (Utils.isAndroidAutoMode(this)) {
-            // Enable icons view for favorites in Android Auto mode
-            sharedPref.edit().putBoolean("icons_only_favorites_style", true).apply();
+            // In Android Auto mode, prefer icon view for better car interface usability
+            // But respect user's explicit choice if they've set it
+            boolean hasExplicitIconPreference = sharedPref.contains("icons_only_favorites_style");
+            boolean loadIconsEnabled = sharedPref.getBoolean("load_icons", true);
+            
+            if (BuildConfig.DEBUG) {
+                Log.d(TAG, "Android Auto mode detected! hasExplicitIconPreference=" + hasExplicitIconPreference + 
+                    ", loadIconsEnabled=" + loadIconsEnabled);
+            }
+            
+            // If user hasn't explicitly set a preference and icons are enabled, default to icon view for Android Auto
+            if (!hasExplicitIconPreference && loadIconsEnabled) {
+                if (BuildConfig.DEBUG) {
+                    Log.d(TAG, "Setting icons_only_favorites_style=true for Android Auto");
+                }
+                sharedPref.edit().putBoolean("icons_only_favorites_style", true).apply();
+            }
             
             // Always show favorites in Android Auto mode if they exist
             if (!fm.isEmpty()) {
@@ -1196,21 +1210,29 @@ public class ActivityMain extends AppCompatActivity implements SearchView.OnQuer
      */
     private void handleAndroidAutoModeChange() {
         if (Utils.isAndroidAutoMode(this)) {
-            // Enable icons view for favorites in Android Auto mode
-            boolean currentIconsOnlyStyle = sharedPref.getBoolean("icons_only_favorites_style", false);
-            if (!currentIconsOnlyStyle) {
+            // In Android Auto mode, prefer icon view for better car interface usability
+            // But respect user's explicit choice if they've set it
+            boolean hasExplicitIconPreference = sharedPref.contains("icons_only_favorites_style");
+            boolean loadIconsEnabled = sharedPref.getBoolean("load_icons", true);
+            
+            // If user hasn't explicitly set a preference and icons are enabled, default to icon view for Android Auto
+            if (!hasExplicitIconPreference && loadIconsEnabled) {
                 sharedPref.edit().putBoolean("icons_only_favorites_style", true).apply();
                 
                 // If currently showing favorites, refresh to apply icon view
                 if (selectedMenuItem == R.id.nav_item_starred) {
-                    Fragment currentFragment = mFragmentManager.getFragments().get(mFragmentManager.getFragments().size() - 1);
-                    if (currentFragment instanceof FragmentStarred) {
-                        // Recreate the fragment to apply the new view style
-                        FragmentTransaction fragmentTransaction = mFragmentManager.beginTransaction();
-                        fragmentTransaction.replace(R.id.containerView, new FragmentStarred());
-                        fragmentTransaction.commit();
-                    }
+                    recreate();
+                    return;
                 }
+            }
+            
+            // In Android Auto mode, ensure we're showing favorites if available
+            RadioDroidApp radioDroidApp = (RadioDroidApp) getApplication();
+            FavouriteManager fm = radioDroidApp.getFavouriteManager();
+            
+            // If we have favorites and we're not already showing them, switch to favorites
+            if (!fm.isEmpty() && selectedMenuItem != R.id.nav_item_starred) {
+                selectMenuItem(R.id.nav_item_starred);
             }
         }
     }

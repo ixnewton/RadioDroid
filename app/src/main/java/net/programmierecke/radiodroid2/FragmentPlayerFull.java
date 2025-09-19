@@ -44,6 +44,7 @@ import net.programmierecke.radiodroid2.history.TrackHistoryAdapter;
 import net.programmierecke.radiodroid2.history.TrackHistoryEntry;
 import net.programmierecke.radiodroid2.history.TrackHistoryRepository;
 import net.programmierecke.radiodroid2.history.TrackHistoryViewModel;
+import net.programmierecke.radiodroid2.players.PlayState;
 import net.programmierecke.radiodroid2.recording.Recordable;
 import net.programmierecke.radiodroid2.recording.RecordingsAdapter;
 import net.programmierecke.radiodroid2.recording.RecordingsManager;
@@ -505,12 +506,27 @@ public class FragmentPlayerFull extends Fragment {
     }
 
     private void updatePlayButton(boolean playing) {
-        if (playing) {
-            btnPlay.setImageResource(R.drawable.ic_pause_circle);
-            btnPlay.setContentDescription(getResources().getString(R.string.detail_pause));
-        } else {
-            btnPlay.setImageResource(R.drawable.ic_play_circle);
-            btnPlay.setContentDescription(getResources().getString(R.string.detail_play));
+        PlayState currentState = PlayerServiceUtil.getPlayerState();
+        
+        switch (currentState) {
+            case Playing:
+                btnPlay.setImageResource(R.drawable.ic_pause_circle);
+                btnPlay.setContentDescription(getResources().getString(R.string.detail_pause));
+                break;
+            case PrePlaying:
+                // Show pause icon during buffering/loading since user can pause
+                btnPlay.setImageResource(R.drawable.ic_pause_circle);
+                btnPlay.setContentDescription(getResources().getString(R.string.detail_pause));
+                break;
+            case Paused:
+                btnPlay.setImageResource(R.drawable.ic_play_circle);
+                btnPlay.setContentDescription(getResources().getString(R.string.detail_play));
+                break;
+            case Idle:
+            default:
+                btnPlay.setImageResource(R.drawable.ic_play_circle);
+                btnPlay.setContentDescription(getResources().getString(R.string.detail_play));
+                break;
         }
     }
 

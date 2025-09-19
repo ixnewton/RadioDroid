@@ -38,6 +38,7 @@ public class ItemAdapterIconOnlyStation extends ItemAdapaterContextMenuStation i
             imageViewIcon = itemView.findViewById(R.id.iconImageViewIcon);
             transparentImageView = itemView.findViewById(R.id.iconTransparentCircle);
             itemView.setOnCreateContextMenuListener(this);
+            itemView.setOnClickListener(this);
         }
 
         public void dismissContextMenu() {

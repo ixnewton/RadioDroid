@@ -638,6 +638,13 @@ public class Utils {
      */
     public static boolean isAndroidAutoMode(Context context) {
         android.app.UiModeManager uiModeManager = (android.app.UiModeManager) context.getSystemService(Context.UI_MODE_SERVICE);
-        return uiModeManager != null && uiModeManager.getCurrentModeType() == android.content.res.Configuration.UI_MODE_TYPE_CAR;
+        boolean isCarMode = uiModeManager != null && uiModeManager.getCurrentModeType() == android.content.res.Configuration.UI_MODE_TYPE_CAR;
+        
+        if (BuildConfig.DEBUG) {
+            android.util.Log.d("AndroidAuto", "isAndroidAutoMode: " + isCarMode + 
+                " (UI_MODE_TYPE: " + (uiModeManager != null ? uiModeManager.getCurrentModeType() : "null") + ")");
+        }
+        
+        return isCarMode;
     }
 }

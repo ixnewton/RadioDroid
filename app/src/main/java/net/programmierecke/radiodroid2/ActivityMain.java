@@ -12,6 +12,8 @@ import android.content.res.Resources;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.provider.DocumentsContract;
 import android.text.TextUtils;
 import android.util.Log;
@@ -315,6 +317,8 @@ public class ActivityMain extends AppCompatActivity implements SearchView.OnQuer
 
         ((RadioDroidApp) getApplication()).getCastHandler().onCreate(this);
 
+        // Standard Android Auto behavior - no special handling needed
+
         setupStartUpFragment();
     }
 
@@ -582,6 +586,11 @@ public class ActivityMain extends AppCompatActivity implements SearchView.OnQuer
         super.onCreateOptionsMenu(menu);
         // Inflate the menu; this adds items to the action bar if it is present.
         getMenuInflater().inflate(R.menu.menu_main, menu);
+        
+        // Menu creation logging
+        if (BuildConfig.DEBUG) {
+            Log.d(TAG, "onCreateOptionsMenu called - selectedMenuItem: " + selectedMenuItem);
+        }
 
         final Toolbar myToolbar = (Toolbar) findViewById(R.id.my_awesome_toolbar);
         menuItemSleepTimer = menu.findItem(R.id.action_set_sleep_timer);
@@ -648,13 +657,23 @@ public class ActivityMain extends AppCompatActivity implements SearchView.OnQuer
                 menuItemLoad.setVisible(true);
                 menuItemSave.setTitle(R.string.nav_item_save_playlist);
 
-                // Hide list/icon view toggle in Android Auto mode - force icon matrix display only
-                if (!Utils.isAndroidAutoMode(this)) {
-                    if (sharedPref.getBoolean("icons_only_favorites_style", false)) {
-                        menuItemListView.setVisible(true);
-                    } else if (sharedPref.getBoolean("load_icons", false)) {
-                        menuItemIconsView.setVisible(true);
-                    }
+                // Show list/icon view toggle for favorites
+                boolean iconsOnlyStyle = sharedPref.getBoolean("icons_only_favorites_style", false);
+                boolean loadIcons = sharedPref.getBoolean("load_icons", false);
+                
+                if (BuildConfig.DEBUG) {
+                    Log.d(TAG, "FAVORITES MENU - iconsOnlyStyle: " + iconsOnlyStyle + ", loadIcons: " + loadIcons);
+                }
+                
+                // Always show icon/list toggle in favorites (both Android Auto and normal mode)
+                if (iconsOnlyStyle) {
+                    menuItemListView.setVisible(true);
+                    Log.i("RadioDroid", "Showing LIST VIEW button (currently in icons mode)");
+                } else if (loadIcons) {
+                    menuItemIconsView.setVisible(true);
+                    Log.i("RadioDroid", "Showing ICONS VIEW button (currently in list mode)");
+                } else {
+                    Log.w("RadioDroid", "No view toggle shown - loadIcons is false");
                 }
                 if (radioDroidApp.getFavouriteManager().isEmpty()) {
                     menuItemDelete.setVisible(false);
@@ -917,10 +936,10 @@ public class ActivityMain extends AppCompatActivity implements SearchView.OnQuer
         // Check if running in Android Auto mode
         if (Utils.isAndroidAutoMode(this)) {
             if (BuildConfig.DEBUG) {
-                Log.d(TAG, "Android Auto mode detected! Forcing favorites with icon matrix display");
+                Log.d(TAG, "Android Auto mode detected! Showing favorites with user's preferred view style");
             }
             
-            // Always show favorites in Android Auto mode if they exist (icon matrix display forced in FragmentStarred)
+            // Always show favorites in Android Auto mode if they exist (respecting user's view preference)
             if (!fm.isEmpty()) {
                 selectMenuItem(R.id.nav_item_starred);
                 return;
@@ -1199,7 +1218,7 @@ public class ActivityMain extends AppCompatActivity implements SearchView.OnQuer
      */
     private void handleAndroidAutoModeChange() {
         if (Utils.isAndroidAutoMode(this)) {
-            // In Android Auto mode, ensure we're showing favorites if available (icon matrix display forced in FragmentStarred)
+            // In Android Auto mode, ensure we're showing favorites if available (respecting user's view preference)
             RadioDroidApp radioDroidApp = (RadioDroidApp) getApplication();
             FavouriteManager fm = radioDroidApp.getFavouriteManager();
             

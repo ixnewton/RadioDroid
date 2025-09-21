@@ -83,21 +83,17 @@ public class FragmentStarred extends Fragment implements IAdapterRefreshable, Ob
 
         ItemAdapterStation adapter;
         SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(getContext());
-        boolean useIconView = sharedPref.getBoolean("icons_only_favorites_style", false);
+        boolean useIconView = sharedPref.getBoolean("icons_only_favorites_style", true);
         boolean loadIcons = sharedPref.getBoolean("load_icons", true);
-        boolean isAndroidAuto = Utils.isAndroidAutoMode(getContext());
-        
-        // Force icon matrix display in Android Auto mode - disable list option
-        if (isAndroidAuto) {
-            useIconView = true;
-        }
         
         if (BuildConfig.DEBUG) {
-            Log.d(TAG, "FragmentStarred: useIconView=" + useIconView + ", loadIcons=" + loadIcons + 
-                ", isAndroidAuto=" + isAndroidAuto + (isAndroidAuto ? " (forced icon view)" : ""));
+            Log.d(TAG, "FragmentStarred: useIconView=" + useIconView + ", loadIcons=" + loadIcons);
         }
         
         if (useIconView) {
+            if (BuildConfig.DEBUG) {
+                Log.d(TAG, "Creating ICON adapter (ItemAdapterIconOnlyStation)");
+            }
             adapter = new ItemAdapterIconOnlyStation(getActivity(), R.layout.list_item_icon_only_station, StationsFilter.FilterType.LOCAL);
             Context ctx = getContext();
             
@@ -112,6 +108,9 @@ public class FragmentStarred extends Fragment implements IAdapterRefreshable, Ob
             rvStations.setLayoutManager(glm);
             ((ItemAdapterIconOnlyStation)adapter).enableItemMove(rvStations);
         } else {
+            if (BuildConfig.DEBUG) {
+                Log.d(TAG, "Creating LIST adapter (ItemAdapterStation)");
+            }
             adapter = new ItemAdapterStation(getActivity(), R.layout.list_item_station, StationsFilter.FilterType.LOCAL);
             
             // Reset padding for list view (no extra padding needed)

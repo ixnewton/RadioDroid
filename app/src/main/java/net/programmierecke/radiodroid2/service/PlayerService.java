@@ -18,24 +18,24 @@ import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
+import android.net.wifi.WifiManager;
 import android.media.AudioManager;
 import android.media.ToneGenerator;
-import android.media.audiofx.AudioEffect;
-import android.net.wifi.WifiManager;
+import android.os.Binder;
 import android.os.Build;
 import android.os.CountDownTimer;
 import android.os.Handler;
 import android.os.IBinder;
-import android.os.Parcelable;
 import android.os.PowerManager;
 import android.os.RemoteException;
-import android.support.v4.media.MediaMetadataCompat;
-
 import androidx.annotation.NonNull;
 import androidx.core.app.JobIntentService;
 import androidx.media.app.NotificationCompat.MediaStyle;
 import androidx.media.session.MediaButtonReceiver;
 
+import android.media.audiofx.AudioEffect;
+import android.os.Parcelable;
+import android.support.v4.media.MediaMetadataCompat;
 import android.support.v4.media.session.MediaSessionCompat;
 import android.support.v4.media.session.PlaybackStateCompat;
 import android.text.TextUtils;
@@ -461,8 +461,13 @@ public class PlayerService extends JobIntentService implements RadioPlayer.Playe
 
         mediaSession = new MediaSessionCompat(getBaseContext(), getBaseContext().getPackageName());
         mediaSession.setCallback(mediaSessionCallback);
+        
+        // Set the MediaSession reference in the callback for queue management
+        ((MediaSessionCallback) mediaSessionCallback).setMediaSession(mediaSession);
 
+        // Create intent for session activity - this controls what opens when user explicitly accesses player
         Intent startActivityIntent = new Intent(itsContext.getApplicationContext(), ActivityMain.class);
+        // Standard Android Auto behavior - opens to player when accessing MediaSession
         mediaSession.setSessionActivity(PendingIntent.getActivity(itsContext.getApplicationContext(), 0, startActivityIntent, PendingIntent.FLAG_UPDATE_CURRENT | pendingIntentFlag));
 
         mediaSession.setFlags(MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS | MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS);

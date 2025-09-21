@@ -6,8 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 ### Added
 - Android Auto support: Favorites view is automatically set as default when running in Android Auto mode
-- Forces icon matrix display for optimal car interface usability in Android Auto mode (list view disabled)
 - Dynamic Android Auto mode detection for seamless switching between car and regular modes
+- Enhanced debugging for Android Auto mode detection and view creation
+
+### Changed
+- Android Auto mode now respects user's stored view preference (list or icons) from regular app usage
+- Simplified Android Auto implementation - no separate controls needed, uses existing user preferences
+- Improved consistency between regular app and Android Auto experience
 
 ### Fixed
 - Favorites icon view now works correctly regardless of "Load Icons" setting - respects user's icon view preference

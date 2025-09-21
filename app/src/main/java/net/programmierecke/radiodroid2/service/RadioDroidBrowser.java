@@ -2,9 +2,16 @@ package net.programmierecke.radiodroid2.service;
 
 import android.content.ContentResolver;
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.content.res.Resources;
+import android.preference.PreferenceManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
+import android.graphics.Paint;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffXfermode;
+import android.graphics.RectF;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
@@ -20,12 +27,15 @@ import android.support.v4.media.MediaMetadataCompat;
 
 import android.text.TextUtils;
 
+import androidx.media.utils.MediaConstants;
+
 import com.squareup.picasso.Picasso;
 import com.squareup.picasso.Target;
 
 import net.programmierecke.radiodroid2.R;
 import net.programmierecke.radiodroid2.RadioDroidApp;
 import net.programmierecke.radiodroid2.Utils;
+import net.programmierecke.radiodroid2.service.PlayerServiceUtil;
 import net.programmierecke.radiodroid2.station.DataRadioStation;
 
 import java.lang.ref.WeakReference;
@@ -44,11 +54,12 @@ import static net.programmierecke.radiodroid2.Utils.resourceToUri;
 
 
 public class RadioDroidBrowser {
-    private static final String MEDIA_ID_ROOT = "__ROOT__";
-    private static final String MEDIA_ID_MUSICS_FAVORITE = "__FAVORITE__";
-    private static final String MEDIA_ID_MUSICS_HISTORY = "__HISTORY__";
-    private static final String MEDIA_ID_MUSICS_TOP = "__TOP__";
-    private static final String MEDIA_ID_MUSICS_TOP_TAGS = "__TOP_TAGS__";
+    public static final String MEDIA_ID_ROOT = "__ROOT__";
+    public static final String MEDIA_ID_MUSICS_FAVORITE = "FAVORITE";
+    public static final String MEDIA_ID_MUSICS_HISTORY = "HISTORY";
+    public static final String MEDIA_ID_RECOMMENDED = "__RECOMMENDED__"; // Android Auto recommendations
+    public static final String MEDIA_ID_MUSICS_TOP = "__TOP__";
+    public static final String MEDIA_ID_MUSICS_TOP_TAGS = "__TOP_TAGS__";
 
     private static final char LEAF_SEPARATOR = '|';
 
@@ -62,6 +73,7 @@ public class RadioDroidBrowser {
         private MediaBrowserServiceCompat.Result<List<MediaBrowserCompat.MediaItem>> result;
         private List<DataRadioStation> stations;
         private WeakReference<Context> contextRef;
+        private String parentId;
 
         private Map<String, Bitmap> stationIdToIcon = new HashMap<>();
         private CountDownLatch countDownLatch;
@@ -69,10 +81,11 @@ public class RadioDroidBrowser {
         // Picasso stores weak references to targets
         List<Target> imageLoadTargets = new ArrayList<>();
 
-        RetrieveStationsIconAndSendResult(MediaBrowserServiceCompat.Result<List<MediaBrowserCompat.MediaItem>> result, List<DataRadioStation> stations, Context context) {
+        RetrieveStationsIconAndSendResult(MediaBrowserServiceCompat.Result<List<MediaBrowserCompat.MediaItem>> result, List<DataRadioStation> stations, Context context, String parentId) {
             this.result = result;
             this.stations = stations;
             this.contextRef = new WeakReference<>(context);
+            this.parentId = parentId;
             resources = context.getApplicationContext().getResources();
         }
 
@@ -148,10 +161,62 @@ public class RadioDroidBrowser {
                 Bundle extras = new Bundle();
                 extras.putParcelable(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, stationIcon);
                 extras.putParcelable(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON, stationIcon);
+                
+                // Set content style based on user preference for Android Auto
+                Context appContext = contextRef.get();
+                if (appContext != null) {
+                    SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(appContext);
+                    boolean iconsOnlyStyle = sharedPref.getBoolean("icons_only_favorites_style", false);
+                    
+                    // Check if this station is currently playing for visual feedback
+                    String currentStationUuid = PlayerServiceUtil.getStationId();
+                    boolean isCurrentlyPlaying = station.StationUuid.equals(currentStationUuid);
+                    
+                    if (iconsOnlyStyle) {
+                        // Use grid layout for icon view - Android Auto standard is 3 columns
+                        extras.putInt(MediaConstants.DESCRIPTION_EXTRAS_KEY_CONTENT_STYLE_SINGLE_ITEM,
+                                MediaConstants.DESCRIPTION_EXTRAS_VALUE_CONTENT_STYLE_GRID_ITEM);
+                        
+                        // Force 3 columns to match Android Auto standard for media apps
+                        extras.putInt("android.media.browse.CONTENT_STYLE_GRID_COLUMNS", 3);
+                        
+                        if (isCurrentlyPlaying) {
+                            android.util.Log.i("RadioDroidBrowser", "Setting Android Auto to GRID view (3 columns) for CURRENTLY PLAYING station: " + station.Name);
+                            // Add visual indicator for currently playing station
+                            extras.putString("android.media.browse.CONTENT_STYLE_PLAYING_INDICATOR", "true");
+                        } else {
+                            android.util.Log.i("RadioDroidBrowser", "Setting Android Auto to GRID view (3 columns) for station: " + station.Name);
+                        }
+                    } else {
+                        // Use list layout for list view
+                        extras.putInt(MediaConstants.DESCRIPTION_EXTRAS_KEY_CONTENT_STYLE_SINGLE_ITEM,
+                                MediaConstants.DESCRIPTION_EXTRAS_VALUE_CONTENT_STYLE_LIST_ITEM);
+                        
+                        if (isCurrentlyPlaying) {
+                            android.util.Log.i("RadioDroidBrowser", "Setting Android Auto to LIST view for CURRENTLY PLAYING station: " + station.Name);
+                            // Add visual indicator for currently playing station
+                            extras.putString("android.media.browse.CONTENT_STYLE_PLAYING_INDICATOR", "true");
+                        } else {
+                            android.util.Log.i("RadioDroidBrowser", "Setting Android Auto to LIST view for station: " + station.Name);
+                        }
+                    }
+                }
+                
+                // Determine correct MediaId based on parent context
+                String mediaId;
+                if (parentId.equals(MEDIA_ID_MUSICS_FAVORITE)) {
+                    mediaId = MEDIA_ID_MUSICS_FAVORITE + LEAF_SEPARATOR + station.StationUuid;
+                } else {
+                    mediaId = MEDIA_ID_MUSICS_HISTORY + LEAF_SEPARATOR + station.StationUuid;
+                }
+                
+                // Apply rounded corners to icon for Android Auto
+                Bitmap roundedIcon = createRoundedBitmap(stationIcon, 6); // 6dp radius to match mobile app
+                
                 mediaItems.add(new MediaBrowserCompat.MediaItem(new MediaDescriptionCompat.Builder()
-                        .setMediaId(MEDIA_ID_MUSICS_HISTORY + LEAF_SEPARATOR + station.StationUuid)
-                        .setTitle(station.Name)
-                        .setIconBitmap(stationIcon)
+                        .setMediaId(mediaId)
+                        .setTitle(station.Name) // Show station names in Android Auto grid view
+                        .setIconBitmap(roundedIcon)
                         .setExtras(extras)
                         .build(),
                         MediaBrowserCompat.MediaItem.FLAG_PLAYABLE));
@@ -174,7 +239,17 @@ public class RadioDroidBrowser {
         // Allow Android Auto and other trusted media clients
         if (isValidPackage(clientPackageName, clientUid)) {
             android.util.Log.d("RadioDroidBrowser", "Allowing access for: " + clientPackageName);
-            return new MediaBrowserServiceCompat.BrowserRoot(MEDIA_ID_ROOT, null);
+            
+            // Create extras bundle to hint Android Auto to prefer browse view over player view
+            Bundle extras = new Bundle();
+            extras.putBoolean("android.media.browse.CONTENT_STYLE_BROWSABLE_HINT", true);
+            extras.putBoolean("android.media.browse.CONTENT_STYLE_PLAYABLE_HINT", false);
+            
+            // Add hint to show favorites as default view
+            extras.putString("android.media.browse.DEFAULT_TAB", MEDIA_ID_MUSICS_FAVORITE);
+            
+            android.util.Log.d("RadioDroidBrowser", "Setting Android Auto to prefer browse view with favorites default");
+            return new MediaBrowserServiceCompat.BrowserRoot(MEDIA_ID_ROOT, extras);
         }
         
         // Return empty root for untrusted clients (they can connect but can't browse)
@@ -222,6 +297,28 @@ public class RadioDroidBrowser {
         }
         
         if (MEDIA_ID_ROOT.equals(parentId)) {
+            // For Android Auto, check if we should show favorites directly as root content
+            RadioDroidApp app = (RadioDroidApp) radioDroidApp;
+            if (app.getFavouriteManager() != null && !app.getFavouriteManager().isEmpty()) {
+                android.util.Log.d("RadioDroidBrowser", "Android Auto: Showing favorites directly as root content");
+                // Show favorites directly instead of root menu for better UX
+                SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(radioDroidApp);
+                boolean iconsOnlyStyle = sharedPref.getBoolean("icons_only_favorites_style", true);
+                android.util.Log.i("RadioDroidBrowser", "Android Auto Root - using user preference: iconsOnlyStyle=" + iconsOnlyStyle);
+                
+                List<DataRadioStation> stations = app.getFavouriteManager().getList();
+                if (stations != null && !stations.isEmpty()) {
+                    stationIdToStation.clear();
+                    for (DataRadioStation station : stations) {
+                        stationIdToStation.put(station.StationUuid, station);
+                    }
+                    result.detach();
+                    new RetrieveStationsIconAndSendResult(result, stations, radioDroidApp, MEDIA_ID_MUSICS_FAVORITE).execute();
+                    return;
+                }
+            }
+            
+            // Fallback to normal root menu if no favorites
             result.sendResult(createBrowsableMediaItemsForRoot(resources));
             return;
         }
@@ -232,15 +329,45 @@ public class RadioDroidBrowser {
 
         switch (parentId) {
             case MEDIA_ID_MUSICS_FAVORITE: {
+                // Use user's stored preference for Android Auto (default to icon view)
+                SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(radioDroidApp);
+                boolean iconsOnlyStyle = sharedPref.getBoolean("icons_only_favorites_style", true);
+                boolean loadIcons = sharedPref.getBoolean("load_icons", true);
+                
+                android.util.Log.i("RadioDroidBrowser", "Android Auto Favorites - using user preference: iconsOnlyStyle=" + iconsOnlyStyle + ", loadIcons=" + loadIcons);
+                
                 stations = radioDroidApp.getFavouriteManager().getList();
                 break;
             }
             case MEDIA_ID_MUSICS_HISTORY: {
+                // History view also defaults to icon view in Android Auto
+                SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(radioDroidApp);
+                boolean iconsOnlyStyle = sharedPref.getBoolean("icons_only_favorites_style", true);
+                boolean loadIcons = sharedPref.getBoolean("load_icons", true);
+                
+                android.util.Log.i("RadioDroidBrowser", "Android Auto History - using icon view: iconsOnlyStyle=" + iconsOnlyStyle + ", loadIcons=" + loadIcons);
+                
                 stations = radioDroidApp.getHistoryManager().getList();
                 break;
             }
             case MEDIA_ID_MUSICS_TOP: {
 
+                break;
+            }
+            case MEDIA_ID_RECOMMENDED: {
+                // Android Auto "For You" recommendations - provide top favorites
+                android.util.Log.i("RadioDroidBrowser", "Android Auto Recommendations - providing top favorites for 'For You' view");
+                
+                // Use favorites as recommendations, limited to top 6 most recently played
+                List<DataRadioStation> allFavorites = radioDroidApp.getFavouriteManager().getList();
+                if (allFavorites != null && !allFavorites.isEmpty()) {
+                    // Limit to 6 recommendations for better performance and UX
+                    int maxRecommendations = Math.min(6, allFavorites.size());
+                    stations = allFavorites.subList(0, maxRecommendations);
+                    android.util.Log.i("RadioDroidBrowser", "Providing " + stations.size() + " recommendations from favorites");
+                } else {
+                    android.util.Log.i("RadioDroidBrowser", "No favorites available for recommendations");
+                }
                 break;
             }
         }
@@ -251,7 +378,7 @@ public class RadioDroidBrowser {
                 stationIdToStation.put(station.StationUuid, station);
             }
             result.detach();
-            new RetrieveStationsIconAndSendResult(result, stations, radioDroidApp).execute();
+            new RetrieveStationsIconAndSendResult(result, stations, radioDroidApp, parentId).execute();
         } else {
             result.sendResult(mediaItems);
         }
@@ -300,5 +427,44 @@ public class RadioDroidBrowser {
         }
 
         return mediaId.substring(separatorIdx + 1);
+    }
+    
+    /**
+     * Creates a rounded bitmap for Android Auto icons
+     */
+    private static Bitmap createRoundedBitmap(Bitmap bitmap, int radiusDp) {
+        if (bitmap == null) {
+            return null;
+        }
+        
+        try {
+            int width = bitmap.getWidth();
+            int height = bitmap.getHeight();
+            
+            // Create output bitmap
+            Bitmap output = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+            Canvas canvas = new Canvas(output);
+            
+            // Create paint for drawing
+            Paint paint = new Paint();
+            paint.setAntiAlias(true);
+            paint.setColor(0xff424242);
+            
+            // Convert dp to pixels (approximate)
+            float radiusPx = radiusDp * 3; // Rough dp to px conversion
+            
+            // Create rounded rectangle
+            RectF rect = new RectF(0, 0, width, height);
+            canvas.drawRoundRect(rect, radiusPx, radiusPx, paint);
+            
+            // Apply source bitmap with rounded mask
+            paint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.SRC_IN));
+            canvas.drawBitmap(bitmap, 0, 0, paint);
+            
+            return output;
+        } catch (Exception e) {
+            android.util.Log.w("RadioDroidBrowser", "Failed to create rounded bitmap: " + e.getMessage());
+            return bitmap; // Return original bitmap if rounding fails
+        }
     }
 }

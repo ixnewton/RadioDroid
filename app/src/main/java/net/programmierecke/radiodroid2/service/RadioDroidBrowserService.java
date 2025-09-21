@@ -47,6 +47,10 @@ public class RadioDroidBrowserService extends MediaBrowserServiceCompat {
                     playTask = new GetRealLinkAndPlayTask(context, station, playerService);
                     playTask.execute();
                 }
+            } else if (PlayerService.PLAYER_SERVICE_META_UPDATE.equals(action)) {
+                // Station changed - refresh favorites view to update visual feedback
+                android.util.Log.i("RadioDroidBrowserService", "Station changed - refreshing Android Auto favorites view");
+                notifyChildrenChanged(RadioDroidBrowser.MEDIA_ID_MUSICS_FAVORITE);
             }
         }
     };
@@ -82,6 +86,7 @@ public class RadioDroidBrowserService extends MediaBrowserServiceCompat {
 
         IntentFilter filter = new IntentFilter();
         filter.addAction(MediaSessionCallback.BROADCAST_PLAY_STATION_BY_ID);
+        filter.addAction(PlayerService.PLAYER_SERVICE_META_UPDATE); // Listen for station changes
 
         LocalBroadcastManager bm = LocalBroadcastManager.getInstance(this);
         bm.registerReceiver(playStationFromIdReceiver, filter);

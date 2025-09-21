@@ -501,7 +501,17 @@ public class Utils {
 
     public static boolean bottomNavigationEnabled(Context context) {
         SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(context);
-        return sharedPref.getBoolean("bottom_navigation", true);
+        boolean bottomNavPref = sharedPref.getBoolean("bottom_navigation", true);
+        
+        // In Android Auto mode, force drawer navigation for better car interface
+        if (isAndroidAutoMode(context)) {
+            if (BuildConfig.DEBUG) {
+                android.util.Log.d("AndroidAuto", "bottomNavigationEnabled: forcing drawer navigation in Android Auto mode");
+            }
+            return false; // Force drawer navigation in Android Auto
+        }
+        
+        return bottomNavPref;
     }
 
     public static String formatStringWithNamedArgs(String format, Map<String, String> args) {
@@ -641,8 +651,11 @@ public class Utils {
         boolean isCarMode = uiModeManager != null && uiModeManager.getCurrentModeType() == android.content.res.Configuration.UI_MODE_TYPE_CAR;
         
         if (BuildConfig.DEBUG) {
+            int currentModeType = uiModeManager != null ? uiModeManager.getCurrentModeType() : -1;
             android.util.Log.d("AndroidAuto", "isAndroidAutoMode: " + isCarMode + 
-                " (UI_MODE_TYPE: " + (uiModeManager != null ? uiModeManager.getCurrentModeType() : "null") + ")");
+                " (UI_MODE_TYPE: " + currentModeType + 
+                ", UI_MODE_TYPE_CAR=" + android.content.res.Configuration.UI_MODE_TYPE_CAR + 
+                ", uiModeManager=" + (uiModeManager != null ? "available" : "null") + ")");
         }
         
         return isCarMode;

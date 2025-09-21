@@ -166,7 +166,9 @@ public class RadioDroidBrowser {
                 Context appContext = contextRef.get();
                 if (appContext != null) {
                     SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(appContext);
-                    boolean iconsOnlyStyle = sharedPref.getBoolean("icons_only_favorites_style", false);
+                    boolean iconsOnlyStyle = sharedPref.getBoolean("icons_only_favorites_style", true);
+                    
+                    android.util.Log.i("RadioDroidBrowser", "Android Auto MediaItem creation - iconsOnlyStyle=" + iconsOnlyStyle + " for station: " + station.Name);
                     
                     // Check if this station is currently playing for visual feedback
                     String currentStationUuid = PlayerServiceUtil.getStationId();
@@ -176,6 +178,8 @@ public class RadioDroidBrowser {
                         // Use grid layout for icon view - Android Auto standard is 3 columns
                         extras.putInt(MediaConstants.DESCRIPTION_EXTRAS_KEY_CONTENT_STYLE_SINGLE_ITEM,
                                 MediaConstants.DESCRIPTION_EXTRAS_VALUE_CONTENT_STYLE_GRID_ITEM);
+                        
+                        android.util.Log.i("RadioDroidBrowser", "Setting GRID_ITEM style - key=" + MediaConstants.DESCRIPTION_EXTRAS_KEY_CONTENT_STYLE_SINGLE_ITEM + ", value=" + MediaConstants.DESCRIPTION_EXTRAS_VALUE_CONTENT_STYLE_GRID_ITEM);
                         
                         // Force 3 columns to match Android Auto standard for media apps
                         extras.putInt("android.media.browse.CONTENT_STYLE_GRID_COLUMNS", 3);

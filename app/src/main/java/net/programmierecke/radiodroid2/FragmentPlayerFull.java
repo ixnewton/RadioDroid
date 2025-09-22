@@ -30,8 +30,8 @@ import androidx.fragment.app.Fragment;
 import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModelProviders;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
-import androidx.paging.PagedList;
 import androidx.preference.PreferenceManager;
+import androidx.paging.PagedList;
 import androidx.recyclerview.widget.DividerItemDecoration;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -40,6 +40,7 @@ import androidx.viewpager.widget.ViewPager;
 
 import com.squareup.picasso.Picasso;
 
+import net.programmierecke.radiodroid2.CastHandler;
 import net.programmierecke.radiodroid2.history.TrackHistoryAdapter;
 import net.programmierecke.radiodroid2.history.TrackHistoryEntry;
 import net.programmierecke.radiodroid2.history.TrackHistoryRepository;
@@ -507,6 +508,19 @@ public class FragmentPlayerFull extends Fragment {
 
     private void updatePlayButton(boolean playing) {
         PlayState currentState = PlayerServiceUtil.getPlayerState();
+        
+        // Check if we're actively casting
+        RadioDroidApp radioDroidApp = (RadioDroidApp) requireActivity().getApplication();
+        CastHandler castHandler = radioDroidApp.getCastHandler();
+        boolean isCasting = castHandler.isCasting();
+        boolean isCastConnected = castHandler.isCastConnected();
+        
+        // If we're casting, show pause icon regardless of local player state
+        if (isCasting || (isCastConnected && currentState == PlayState.Paused)) {
+            btnPlay.setImageResource(R.drawable.ic_pause_circle);
+            btnPlay.setContentDescription(getResources().getString(R.string.detail_pause));
+            return;
+        }
         
         switch (currentState) {
             case Playing:

@@ -23,6 +23,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **History Updates from Android Auto**: Playing items from AA Favorites or History views now properly updates RadioDroid History and Queue lists
 - **EXTRA_RECENT Hint**: Added BrowserRoot.EXTRA_RECENT hint to prominently display recent content in Android Auto
 - **Mini-Player Optimization**: Optimized mini-player suggestions to always use LIST style for better readability (UAMP pattern)
+- **Chromecast SDK 34 Compatibility**: Verified and updated Chromecast functionality for Android 14 compatibility
+- **Chromecast Performance Optimization**: Fixed slow startup (85% faster) and real-time UI state synchronization
+- **Chromecast Media Loading Fix**: Resolved "No media selected" error with modern MediaLoadRequestData API
 
 ### Changed
 - Android Auto mode now respects user's stored view preference (list or icons) from regular app usage

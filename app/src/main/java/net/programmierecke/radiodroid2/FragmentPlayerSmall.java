@@ -15,6 +15,7 @@ import androidx.fragment.app.Fragment;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import androidx.preference.PreferenceManager;
 
+import net.programmierecke.radiodroid2.CastHandler;
 import net.programmierecke.radiodroid2.history.TrackHistoryRepository;
 import net.programmierecke.radiodroid2.players.mpd.MPDClient;
 import net.programmierecke.radiodroid2.players.PlayState;
@@ -232,25 +233,37 @@ public class FragmentPlayerSmall extends Fragment {
     private void fullUpdate() {
         PlayState currentState = PlayerServiceUtil.getPlayerState();
         
-        switch (currentState) {
-            case Playing:
-                buttonPlay.setImageResource(R.drawable.ic_pause_circle);
-                buttonPlay.setContentDescription(getResources().getString(R.string.detail_pause));
-                break;
-            case PrePlaying:
-                // Show pause icon during buffering/loading since user can pause
-                buttonPlay.setImageResource(R.drawable.ic_pause_circle);
-                buttonPlay.setContentDescription(getResources().getString(R.string.detail_pause));
-                break;
-            case Paused:
-                buttonPlay.setImageResource(R.drawable.ic_play_circle);
-                buttonPlay.setContentDescription(getResources().getString(R.string.detail_play));
-                break;
-            case Idle:
-            default:
-                buttonPlay.setImageResource(R.drawable.ic_play_circle);
-                buttonPlay.setContentDescription(getResources().getString(R.string.detail_play));
-                break;
+        // Check if we're actively casting
+        RadioDroidApp radioDroidApp = (RadioDroidApp) requireActivity().getApplication();
+        CastHandler castHandler = radioDroidApp.getCastHandler();
+        boolean isCasting = castHandler.isCasting();
+        boolean isCastConnected = castHandler.isCastConnected();
+        
+        // If we're casting, show pause icon regardless of local player state
+        if (isCasting || (isCastConnected && currentState == PlayState.Paused)) {
+            buttonPlay.setImageResource(R.drawable.ic_pause_circle);
+            buttonPlay.setContentDescription(getResources().getString(R.string.detail_pause));
+        } else {
+            switch (currentState) {
+                case Playing:
+                    buttonPlay.setImageResource(R.drawable.ic_pause_circle);
+                    buttonPlay.setContentDescription(getResources().getString(R.string.detail_pause));
+                    break;
+                case PrePlaying:
+                    // Show pause icon during buffering/loading since user can pause
+                    buttonPlay.setImageResource(R.drawable.ic_pause_circle);
+                    buttonPlay.setContentDescription(getResources().getString(R.string.detail_pause));
+                    break;
+                case Paused:
+                    buttonPlay.setImageResource(R.drawable.ic_play_circle);
+                    buttonPlay.setContentDescription(getResources().getString(R.string.detail_play));
+                    break;
+                case Idle:
+                default:
+                    buttonPlay.setImageResource(R.drawable.ic_play_circle);
+                    buttonPlay.setContentDescription(getResources().getString(R.string.detail_play));
+                    break;
+            }
         }
 
         DataRadioStation station = Utils.getCurrentOrLastStation(requireContext());

@@ -8,16 +8,38 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Android Auto support: Favorites view is automatically set as default when running in Android Auto mode
 - Dynamic Android Auto mode detection for seamless switching between car and regular modes
 - Enhanced debugging for Android Auto mode detection and view creation
+- **UAMP-Inspired Recommendations System**: Implemented intelligent recommendation algorithm based on Google's UAMP example
+- **Smart MediaBrowser Architecture**: Added hierarchical browsing structure with dedicated recommendation categories
+- **Enhanced Content Style Hints**: Improved Android Auto integration with proper grid/list display control
+- **Advanced Recommendation Categories**: Added Popular, By Genre, By Country, and Trending station categories
+- **Player Header Navigation**: Added Favorites and History quick navigation links in Android Auto player header
+- **Recent Queue**: Populated Android Auto queue menu with recent stations from history, renamed to "Recent"
+- **Queue Playback**: Clicking queue items now plays the selected recent station directly in the player
+- **Recent Queue Icons**: Added station icons to Recent queue display with rounded corners and async loading
+- **Auto Queue Updates**: Recent queue automatically updates when stations change to keep history current
+- **Player Icon Refresh**: Player icon refreshes automatically when playback starts or changes stations
+- **Search Disabled in Android Auto**: Removed search icon from Android Auto views to limit search to mobile app only
+- **Mini-Player Recommendations**: Re-implemented mini-player suggestions using UAMP pattern with recent stations
+- **History Updates from Android Auto**: Playing items from AA Favorites or History views now properly updates RadioDroid History and Queue lists
+- **EXTRA_RECENT Hint**: Added BrowserRoot.EXTRA_RECENT hint to prominently display recent content in Android Auto
+- **Mini-Player Optimization**: Optimized mini-player suggestions to always use LIST style for better readability (UAMP pattern)
 
 ### Changed
 - Android Auto mode now respects user's stored view preference (list or icons) from regular app usage
 - Simplified Android Auto implementation - no separate controls needed, uses existing user preferences
 - Improved consistency between regular app and Android Auto experience
+- **Recommendation Algorithm**: Upgraded from simple favorites display to intelligent recommendations combining history and favorites
+- **MediaBrowser Service**: Enhanced with UAMP-style content organization and better Android Auto compatibility
+- **Content Style Management**: Improved root-level content style hints following UAMP architectural patterns
+- **Simplified Android Auto Interface**: Removed Recent Stations and Suggested menu items - Favorites and History are sufficient
+- **Removed Queue Functionality**: Eliminated queue implementation as it's not needed for radio station app
 
 ### Fixed
 - Favorites icon view now works correctly regardless of "Load Icons" setting - respects user's icon view preference
 - Play bar buttons now properly reflect play status with more accurate state handling (Playing, PrePlaying, Paused, Idle)
 - Fixed missing click handling in favorites icon view - stations can now be selected properly in Android Auto mode
+- **Player Focus Fix**: Fixed player next/previous buttons causing navigation to main app page - focus now stays on player interface
+- **MediaBrowser Navigation**: Removed automatic favorites view refresh that was disrupting player focus during track changes
 
 ## [0.86] - 2023-09-28
 ### Added

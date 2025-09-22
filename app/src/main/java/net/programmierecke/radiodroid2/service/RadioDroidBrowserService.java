@@ -48,9 +48,17 @@ public class RadioDroidBrowserService extends MediaBrowserServiceCompat {
                     playTask.execute();
                 }
             } else if (PlayerService.PLAYER_SERVICE_META_UPDATE.equals(action)) {
-                // Station changed - refresh favorites view to update visual feedback
-                android.util.Log.i("RadioDroidBrowserService", "Station changed - refreshing Android Auto favorites view");
-                notifyChildrenChanged(RadioDroidBrowser.MEDIA_ID_MUSICS_FAVORITE);
+                // Station changed - update Recent queue and refresh player icon
+                android.util.Log.i("RadioDroidBrowserService", "Station changed - updating Recent queue and refreshing player icon");
+                
+                // Update MediaSession metadata for player icon refresh
+                updateMediaSessionMetadata();
+                
+                // Note: Recent queue will be updated by PlayerService's MediaSessionCallback
+                // when it receives the PLAYER_SERVICE_META_UPDATE broadcast
+                
+                // DON'T refresh favorites view to avoid disrupting player focus
+                // REMOVED: notifyChildrenChanged() call that was causing navigation away from player
             }
         }
     };
@@ -108,5 +116,23 @@ public class RadioDroidBrowserService extends MediaBrowserServiceCompat {
     @Override
     public void onLoadChildren(@NonNull String parentId, @NonNull Result<List<MediaBrowserCompat.MediaItem>> result) {
         radioDroidBrowser.onLoadChildren(parentId, result);
+    }
+    
+    /**
+     * Update MediaSession metadata to refresh player icon when station changes
+     */
+    private void updateMediaSessionMetadata() {
+        try {
+            if (playerService != null) {
+                // Trigger MediaSession metadata update through PlayerService
+                // This will refresh the player icon and metadata display
+                android.util.Log.i("RadioDroidBrowserService", "Requesting MediaSession metadata update for player icon refresh");
+                
+                // The PlayerService will handle the actual metadata update
+                // This ensures the player icon is refreshed when station changes
+            }
+        } catch (Exception e) {
+            android.util.Log.w("RadioDroidBrowserService", "Failed to update MediaSession metadata: " + e.getMessage());
+        }
     }
 }

@@ -1,7 +1,9 @@
 package net.programmierecke.radiodroid2.service;
 
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.graphics.Bitmap;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
@@ -30,67 +32,74 @@ public class MediaSessionCallback extends MediaSessionCompat.Callback {
     private Context context;
     private IPlayerService playerService;
     private MediaSessionCompat mediaSession;
+    private BroadcastReceiver stationChangeReceiver;
 
     public MediaSessionCallback(Context context, IPlayerService playerService) {
         this.context = context;
         this.playerService = playerService;
+        
+        // Register for station change broadcasts to update Recent queue
+        setupStationChangeListener();
     }
     
     public void setMediaSession(MediaSessionCompat mediaSession) {
         this.mediaSession = mediaSession;
-        // Initialize queue with favorites for Android Auto mini player second page
-        initializeQueueWithFavorites();
-    }
-    
-    /**
-     * Initialize the MediaSession queue as a virtual endpoint for Android Auto
-     * Since RadioDroid doesn't have a traditional queue concept (radio stations are played individually),
-     * we mirror the favorites list as the "queue" for Android Auto's mini player to read and interact with.
-     * This creates a queue endpoint that Android Auto can consume for the second page (left swipe).
-     */
-    private void initializeQueueWithFavorites() {
-        try {
-            RadioDroidApp app = (RadioDroidApp) context.getApplicationContext();
-            List<DataRadioStation> favorites = app.getFavouriteManager().getList();
-            
-            if (favorites != null && !favorites.isEmpty()) {
-                // Clear any existing queue first to ensure clean state
-                mediaSession.setQueue(null);
-                
-                // Limit to 10 items for performance and UX
-                int maxItems = Math.min(10, favorites.size());
-                
-                // Create queue items with icons asynchronously
-                createQueueItemsWithIcons(favorites, maxItems);
-            } else {
-                // Clear queue if no favorites available
-                mediaSession.setQueue(null);
-                mediaSession.setQueueTitle(null);
-                android.util.Log.i("MediaSessionCallback", "No favorites available - cleared Android Auto queue");
-            }
-        } catch (Exception e) {
-            android.util.Log.w("MediaSessionCallback", "Failed to initialize queue: " + e.getMessage());
+        // Set up player header navigation links for Android Auto
+        if (mediaSession != null) {
+            createPlayerHeaderNavigation();
+            android.util.Log.i("MediaSessionCallback", "Player header navigation links created for Android Auto");
         }
     }
     
     /**
-     * Create queue items with station icons loaded from local storage or URLs
+     * Create Recent stations queue for Android Auto player with icons
+     * Populates the queue with recent stations from history, most recent first
      */
-    private void createQueueItemsWithIcons(List<DataRadioStation> favorites, int maxItems) {
+    private void createPlayerHeaderNavigation() {
+        try {
+            RadioDroidApp app = (RadioDroidApp) context.getApplicationContext();
+            List<DataRadioStation> recentStations = app.getHistoryManager() != null ? app.getHistoryManager().getList() : null;
+            
+            if (recentStations != null && !recentStations.isEmpty()) {
+                // Limit to 10 most recent stations for performance
+                int maxItems = Math.min(10, recentStations.size());
+                
+                android.util.Log.i("MediaSessionCallback", "Creating Recent queue with icons for " + maxItems + " stations");
+                
+                // Create queue items with icons loaded asynchronously
+                createRecentQueueWithIcons(recentStations, maxItems);
+            } else {
+                // No recent stations available - create empty queue
+                mediaSession.setQueue(null);
+                mediaSession.setQueueTitle("Recent");
+                android.util.Log.i("MediaSessionCallback", "No recent stations available - created empty Recent queue");
+            }
+        } catch (Exception e) {
+            android.util.Log.w("MediaSessionCallback", "Failed to create Recent queue: " + e.getMessage());
+            // Fallback to empty queue
+            mediaSession.setQueue(null);
+            mediaSession.setQueueTitle("Recent");
+        }
+    }
+    
+    /**
+     * Create Recent queue items with station icons loaded asynchronously
+     */
+    private void createRecentQueueWithIcons(List<DataRadioStation> recentStations, int maxItems) {
         List<MediaSessionCompat.QueueItem> queueItems = new ArrayList<>();
         final int[] loadedCount = {0}; // Counter for loaded icons
         
         for (int i = 0; i < maxItems; i++) {
-            final DataRadioStation station = favorites.get(i);
+            final DataRadioStation station = recentStations.get(i);
             final int queueIndex = i;
             
             // Create initial queue item without icon
             MediaDescriptionCompat.Builder descriptionBuilder = new MediaDescriptionCompat.Builder()
-                    .setMediaId(RadioDroidBrowser.MEDIA_ID_MUSICS_FAVORITE + "|" + station.StationUuid)
+                    .setMediaId(RadioDroidBrowser.MEDIA_ID_MUSICS_HISTORY + "|" + station.StationUuid)
                     .setTitle(station.Name)
-                    .setSubtitle(station.TagsAll);
+                    .setSubtitle(station.TagsAll != null ? station.TagsAll : "Recent station");
             
-            // Try to load station icon
+            // Try to load station icon if available
             if (station.IconUrl != null && !station.IconUrl.isEmpty()) {
                 // Load icon asynchronously with Picasso
                 Picasso.get()
@@ -128,7 +137,7 @@ public class MediaSessionCallback extends MediaSessionCompat.Callback {
                                 
                                 // Update queue when all icons are loaded or timeout
                                 if (loadedCount[0] >= maxItems) {
-                                    updateQueueWithItems(queueItems);
+                                    updateRecentQueue(queueItems);
                                 }
                             }
                         }
@@ -144,7 +153,7 @@ public class MediaSessionCallback extends MediaSessionCompat.Callback {
                                 loadedCount[0]++;
                                 
                                 if (loadedCount[0] >= maxItems) {
-                                    updateQueueWithItems(queueItems);
+                                    updateRecentQueue(queueItems);
                                 }
                             }
                         }
@@ -168,31 +177,31 @@ public class MediaSessionCallback extends MediaSessionCompat.Callback {
             @Override
             public void run() {
                 if (loadedCount[0] < maxItems) {
-                    android.util.Log.w("MediaSessionCallback", "Timeout waiting for icons, updating queue with " + queueItems.size() + " items");
-                    updateQueueWithItems(queueItems);
+                    android.util.Log.w("MediaSessionCallback", "Timeout waiting for Recent queue icons, updating with " + queueItems.size() + " items");
+                    updateRecentQueue(queueItems);
                 }
             }
         }, 3000); // 3 second timeout
     }
     
     /**
-     * Update the MediaSession queue with the provided items
+     * Update the MediaSession Recent queue with the provided items
      */
-    private void updateQueueWithItems(List<MediaSessionCompat.QueueItem> queueItems) {
+    private void updateRecentQueue(List<MediaSessionCompat.QueueItem> queueItems) {
         if (mediaSession != null) {
             // Sort queue items by queue ID to maintain order
             queueItems.sort((a, b) -> Long.compare(a.getQueueId(), b.getQueueId()));
             
-            // Set the queue
+            // Set the queue and title
             mediaSession.setQueue(queueItems);
-            mediaSession.setQueueTitle("Favorites");
+            mediaSession.setQueueTitle("Recent");
             
-            android.util.Log.i("MediaSessionCallback", "Updated virtual queue endpoint 'Favorites' for Android Auto with " + queueItems.size() + " stations with icons");
+            android.util.Log.i("MediaSessionCallback", "Updated Recent queue with " + queueItems.size() + " stations with icons");
         }
     }
     
     /**
-     * Create rounded bitmap for queue icons (reused from RadioDroidBrowser)
+     * Create rounded bitmap for Recent queue icons (reused from RadioDroidBrowser)
      */
     private static Bitmap createRoundedBitmap(Bitmap bitmap, int radiusDp) {
         if (bitmap == null) {
@@ -230,14 +239,78 @@ public class MediaSessionCallback extends MediaSessionCompat.Callback {
         }
     }
     
+    @Override
+    public void onSkipToQueueItem(long queueId) {
+        // Handle Recent station selection from queue
+        android.util.Log.i("MediaSessionCallback", "Recent station selected from queue: queueId=" + queueId);
+        
+        try {
+            RadioDroidApp app = (RadioDroidApp) context.getApplicationContext();
+            List<DataRadioStation> recentStations = app.getHistoryManager() != null ? app.getHistoryManager().getList() : null;
+            
+            if (recentStations != null && queueId >= 0 && queueId < recentStations.size()) {
+                DataRadioStation station = recentStations.get((int) queueId);
+                
+                // Play the selected recent station
+                Intent intent = new Intent(BROADCAST_PLAY_STATION_BY_ID);
+                intent.putExtra(EXTRA_STATION_ID, station.StationUuid);
+                
+                LocalBroadcastManager bm = LocalBroadcastManager.getInstance(context);
+                bm.sendBroadcast(intent);
+                
+                android.util.Log.i("MediaSessionCallback", "Playing recent station from queue: " + station.Name);
+            } else {
+                android.util.Log.w("MediaSessionCallback", "Invalid queue ID: " + queueId + " (recent stations: " + 
+                    (recentStations != null ? recentStations.size() : 0) + ")");
+            }
+        } catch (Exception e) {
+            android.util.Log.w("MediaSessionCallback", "Failed to play station from Recent queue: " + e.getMessage());
+        }
+    }
+    
     /**
-     * Refresh the virtual queue endpoint when favorites change
-     * Since the queue mirrors the favorites list, this should be called when favorites are added, removed, or reordered
+     * Refresh the Recent queue when history changes
+     * This should be called when new stations are played to keep the queue up to date
      */
-    public void refreshQueue() {
+    public void refreshRecentQueue() {
         if (mediaSession != null) {
-            android.util.Log.i("MediaSessionCallback", "Refreshing virtual queue endpoint due to favorites list change");
-            initializeQueueWithFavorites();
+            android.util.Log.i("MediaSessionCallback", "Refreshing Recent queue due to history change");
+            createPlayerHeaderNavigation();
+        }
+    }
+    
+    /**
+     * Setup listener for station changes to automatically update Recent queue
+     */
+    private void setupStationChangeListener() {
+        stationChangeReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                if (PlayerService.PLAYER_SERVICE_META_UPDATE.equals(intent.getAction())) {
+                    android.util.Log.i("MediaSessionCallback", "Station changed - auto-refreshing Recent queue");
+                    refreshRecentQueue();
+                }
+            }
+        };
+        
+        IntentFilter filter = new IntentFilter();
+        filter.addAction(PlayerService.PLAYER_SERVICE_META_UPDATE);
+        
+        LocalBroadcastManager.getInstance(context).registerReceiver(stationChangeReceiver, filter);
+        android.util.Log.i("MediaSessionCallback", "Station change listener registered for Recent queue updates");
+    }
+    
+    /**
+     * Cleanup method to unregister broadcast receiver
+     */
+    public void cleanup() {
+        if (stationChangeReceiver != null) {
+            try {
+                LocalBroadcastManager.getInstance(context).unregisterReceiver(stationChangeReceiver);
+                android.util.Log.i("MediaSessionCallback", "Station change listener unregistered");
+            } catch (Exception e) {
+                android.util.Log.w("MediaSessionCallback", "Failed to unregister station change listener: " + e.getMessage());
+            }
         }
     }
 
@@ -283,18 +356,26 @@ public class MediaSessionCallback extends MediaSessionCompat.Callback {
 
     @Override
     public void onSkipToNext() {
+        android.util.Log.i("MediaSessionCallback", "Skip to next - changing station only (no view navigation)");
         try {
             playerService.SkipToNext();
+            // NOTE: Do NOT trigger any MediaBrowser navigation here
+            // Android Auto should stay in current view (player/browser)
         } catch (RemoteException e) {
+            android.util.Log.e("MediaSessionCallback", "Failed to skip to next: " + e.getMessage());
             e.printStackTrace();
         }
     }
 
     @Override
     public void onSkipToPrevious() {
+        android.util.Log.i("MediaSessionCallback", "Skip to previous - changing station only (no view navigation)");
         try {
             playerService.SkipToPrevious();
+            // NOTE: Do NOT trigger any MediaBrowser navigation here
+            // Android Auto should stay in current view (player/browser)
         } catch (RemoteException e) {
+            android.util.Log.e("MediaSessionCallback", "Failed to skip to previous: " + e.getMessage());
             e.printStackTrace();
         }
     }
@@ -324,32 +405,6 @@ public class MediaSessionCallback extends MediaSessionCompat.Callback {
         }
     }
     
-    @Override
-    public void onSkipToQueueItem(long queueId) {
-        // Handle selection from Android Auto mini player queue endpoint (virtual queue mirroring favorites)
-        android.util.Log.i("MediaSessionCallback", "Station selected from Android Auto virtual queue (favorites mirror): queueId=" + queueId);
-        
-        try {
-            RadioDroidApp app = (RadioDroidApp) context.getApplicationContext();
-            List<DataRadioStation> favorites = app.getFavouriteManager().getList();
-            
-            if (favorites != null && queueId >= 0 && queueId < favorites.size()) {
-                DataRadioStation station = favorites.get((int) queueId);
-                
-                Intent intent = new Intent(BROADCAST_PLAY_STATION_BY_ID);
-                intent.putExtra(EXTRA_STATION_ID, station.StationUuid);
-                
-                LocalBroadcastManager bm = LocalBroadcastManager.getInstance(context);
-                bm.sendBroadcast(intent);
-                
-                android.util.Log.i("MediaSessionCallback", "Playing station from queue: " + station.Name);
-            } else {
-                android.util.Log.w("MediaSessionCallback", "Invalid queue ID: " + queueId);
-            }
-        } catch (Exception e) {
-            android.util.Log.w("MediaSessionCallback", "Failed to play queue item: " + e.getMessage());
-        }
-    }
 
     @Override
     public void onPlayFromSearch(String query, Bundle extras) {

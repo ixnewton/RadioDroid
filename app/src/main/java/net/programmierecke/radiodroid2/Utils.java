@@ -333,11 +333,12 @@ public class Utils {
         final boolean externalAvailable = sharedPref.getBoolean("play_external", false);
 
         CastHandler castHandler = radioDroidApp.getCastHandler();
-        final boolean castAvailable = castHandler.isCastSessionAvailable();
+        final boolean castConnected = castHandler.isCastConnected();
 
         final boolean mpdAvailable = radioDroidApp.getMpdClient().isMpdEnabled();
 
-        if (castAvailable && !externalAvailable && !mpdAvailable) {
+        if (castConnected) {
+            // User has actively connected to a Cast device - start casting
             new PlayStationTask(station, radioDroidApp.getApplicationContext(),
                     url -> castHandler.playRemote(station.Name, url, station.IconUrl),
                     null)
@@ -383,7 +384,19 @@ public class Utils {
     }
 
     public static void play(final RadioDroidApp radioDroidApp, final DataRadioStation station) {
-        PlayerServiceUtil.play(station);
+        // Check if user has actively connected to a Cast device
+        CastHandler castHandler = radioDroidApp.getCastHandler();
+        if (castHandler.isCastConnected()) {
+            // User is connected to Cast device - start casting
+            Log.i("UTIL", "Cast device connected - starting Cast playback for: " + station.Name);
+            new PlayStationTask(station, radioDroidApp.getApplicationContext(),
+                    url -> castHandler.playRemote(station.Name, url, station.IconUrl),
+                    null)
+                    .execute();
+        } else {
+            // No Cast device connected - use local player
+            PlayerServiceUtil.play(station);
+        }
     }
 
     public static boolean shouldLoadIcons(final Context context) {

@@ -75,6 +75,7 @@ public class ItemAdapterStation
     private FilterListener filterListener;
     private boolean supportsStationRemoval = false;
     private StationsFilter.FilterType filterType = StationsFilter.FilterType.LOCAL;
+    private boolean isInFavoritesView = false;
 
     private boolean shouldLoadIcons;
 
@@ -227,6 +228,7 @@ public class ItemAdapterStation
         this.refreshable = refreshableList;
         this.stationsList = stationsList;
         this.filteredStationsList = stationsList;
+        this.isInFavoritesView = true; // Mark that we're in the favorites view
 
         notifyStationsChanged();
     }
@@ -280,24 +282,10 @@ public class ItemAdapterStation
             if (prefs.getBoolean("compact_style", false))
                 setupCompactStyle(holder);
 
-            if (prefs.getBoolean("icon_click_toggles_favorite", true)) {
-
-                final boolean isInFavorites = favouriteManager.has(station.StationUuid);
-                holder.imageViewIcon.setContentDescription(getContext().getApplicationContext().getString(isInFavorites ? R.string.detail_unstar : R.string.detail_star));
-                holder.imageViewIcon.setOnClickListener(new View.OnClickListener() {
-                    @Override
-                    public void onClick(View view) {
-                        if (favouriteManager.has(station.StationUuid)) {
-                            StationActions.removeFromFavourites(getContext(), view, station);
-                        } else {
-                            StationActions.markAsFavourite(getContext(), station);
-                        }
-
-                        int position = holder.getAdapterPosition();
-                        notifyItemChanged(position);
-                    }
-                });
-            }
+            // Disable star icon click in list views - use dedicated star button in expanded details instead
+            // This prevents accidental favorites changes from icon taps
+            holder.imageViewIcon.setOnClickListener(null);
+            holder.imageViewIcon.setClickable(false);
         }
 
         final boolean isExpanded = position == expandedPosition;
@@ -392,16 +380,29 @@ public class ItemAdapterStation
 
             holder.buttonShare.setOnClickListener(view -> StationActions.share(activity, station));
 
-            if (favouriteManager.has(station.StationUuid)) {
-                // favorite stations should only be removed in the favorites view
-                holder.buttonBookmark.setVisibility(View.GONE);
+            // Always show bookmark button and update icon based on favorite status
+            final boolean isStationFavorite = favouriteManager.has(station.StationUuid);
+            if (isStationFavorite) {
+                // Station is favorite - show filled star
+                holder.buttonBookmark.setImageResource(R.drawable.ic_star_black_24dp);
+                holder.buttonBookmark.setContentDescription(getContext().getString(R.string.detail_unstar));
             } else {
-                holder.buttonBookmark.setOnClickListener(view -> {
-                    StationActions.markAsFavourite(getContext(), station);
-                    int position1 = holder.getAdapterPosition();
-                    notifyItemChanged(position1);
-                });
+                // Station is not favorite - show outline star
+                holder.buttonBookmark.setImageResource(R.drawable.ic_star_border_black_24dp);
+                holder.buttonBookmark.setContentDescription(getContext().getString(R.string.detail_star));
             }
+            
+            holder.buttonBookmark.setOnClickListener(view -> {
+                if (favouriteManager.has(station.StationUuid)) {
+                    // Remove from favorites
+                    StationActions.removeFromFavourites(getContext(), view, station);
+                } else {
+                    // Add to favorites
+                    StationActions.markAsFavourite(getContext(), station);
+                }
+                int position1 = holder.getAdapterPosition();
+                notifyItemChanged(position1);
+            });
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1
                     && getContext().getApplicationContext().getSystemService(ShortcutManager.class).isRequestPinShortcutSupported()) {

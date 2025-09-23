@@ -184,7 +184,10 @@ private class CastAvailable(val castContext: CastContext,
                     Log.i(TAG, "✅ Media load request accepted by Cast device")
                     Log.i(TAG, "Waiting for playback to start on Google Home...")
                     
-                    // Invalidate options menu to update play/pause button
+                    // Cast mini controller will automatically appear when media is loaded
+                    Log.i(TAG, "🎵 Cast mini controller should appear automatically")
+                    
+                    // Invalidate options menu to update Cast button
                     invalidateOptions()
                     
                     // Add media status listener for real-time updates
@@ -352,11 +355,15 @@ public class CastHandler {
     
     val isCastConnected: Boolean
         get() = (castState as? CastAvailable)?.castSession?.isConnected == true
+    
 
     fun onCreate(context: Context) {
         if (castState is CastAvailable) {
             return
         }
+
+        // Store application context for broadcasts
+        applicationContext = context.applicationContext
 
         try {
             val googleAPI = GoogleApiAvailability.getInstance()
@@ -410,6 +417,9 @@ public class CastHandler {
         castState.sessionManager.addSessionManagerListener(castState.sessionManagerListener)
         this.castState = castState
         Log.i(TAG, "Cast framework initialized successfully")
+        
+        // Cast framework initialized - MediaRouter will handle all UI updates automatically
+        Log.i(TAG, "Cast framework initialized - MediaRouter will handle UI states")
     }
 
     fun setActivity(activity: CastAwareActivity?) {
@@ -444,9 +454,77 @@ public class CastHandler {
     }
 
     fun getRouteItem(context: Context, menu: Menu): MenuItem {
+        // Always show Cast button (starts grey, becomes white when devices found)
+        // MediaRouter framework handles all state changes automatically
         return CastButtonFactory.setUpMediaRouteButton(context,
                 menu,
                 R.id.media_route_menu_item)
+    }
+    
+    fun getCastAppId(): String {
+        return "5A97BAE4" // RadioDroid Cast App ID
+    }
+    
+    fun hasAvailableDevices(context: Context): Boolean {
+        return try {
+            val mediaRouter = androidx.mediarouter.media.MediaRouter.getInstance(context)
+            val selector = androidx.mediarouter.media.MediaRouteSelector.Builder()
+                .addControlCategory(com.google.android.gms.cast.CastMediaControlIntent.categoryForCast(getCastAppId()))
+                .build()
+            val routes = mediaRouter.getRoutes()
+            
+            // Check if there are any Cast routes available (excluding default route)
+            val castRoutes = routes.filter { route ->
+                route.matchesSelector(selector) && !route.isDefault
+            }
+            
+            val hasDevices = castRoutes.isNotEmpty()
+            Log.i(TAG, "Cast devices available: $hasDevices (found ${castRoutes.size} devices)")
+            hasDevices
+        } catch (e: Exception) {
+            Log.w(TAG, "Error checking for Cast devices: ${e.message}")
+            false
+        }
+    }
+    
+    // Interface for Cast state change notifications
+    interface CastStateChangeListener {
+        fun onCastStateChanged()
+    }
+    
+    private var castStateChangeListener: CastStateChangeListener? = null
+    private var applicationContext: Context? = null
+    
+    fun setCastStateChangeListener(listener: CastStateChangeListener?) {
+        this.castStateChangeListener = listener
+    }
+    
+    private fun notifyCastStateChanged() {
+        castStateChangeListener?.onCastStateChanged()
+        
+        // Send PlayerService state change broadcast to update play bar
+        sendPlayerServiceStateChangeBroadcast()
+        
+        Log.i(TAG, "Cast state change notification sent")
+    }
+    
+    private fun sendPlayerServiceStateChangeBroadcast() {
+        try {
+            val context = applicationContext
+            if (context != null) {
+                val intent = android.content.Intent()
+                intent.action = net.programmierecke.radiodroid2.service.PlayerService.PLAYER_SERVICE_STATE_CHANGE
+                
+                // Get current player state to include in broadcast
+                val currentState = net.programmierecke.radiodroid2.service.PlayerServiceUtil.getPlayerState()
+                intent.putExtra(net.programmierecke.radiodroid2.service.PlayerService.PLAYER_SERVICE_STATE_EXTRA_KEY, currentState as android.os.Parcelable)
+                
+                androidx.localbroadcastmanager.content.LocalBroadcastManager.getInstance(context).sendBroadcast(intent)
+                Log.i(TAG, "PlayerService state change broadcast sent for Cast state change")
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to send PlayerService state change broadcast: ${e.message}")
+        }
     }
     
     fun setupMediaRouteButton(context: Context, button: androidx.mediarouter.app.MediaRouteButton) {
@@ -474,6 +552,7 @@ public class CastHandler {
             Log.i(TAG, "onSessionStarted")
 
             castState.onSessionStarted(session)
+            notifyCastStateChanged()
         }
 
         override fun onSessionStartFailed(session: Session, i: Int) {
@@ -485,27 +564,31 @@ public class CastHandler {
         }
 
         override fun onSessionResumed(session: Session, wasSuspended: Boolean) {
-            Log.i(TAG, "onSessionStarting")
+            Log.i(TAG, "onSessionResumed")
 
             castState.onSessionResumed(session)
+            notifyCastStateChanged()
         }
 
         override fun onSessionResumeFailed(session: Session, i: Int) {
             Log.i(TAG, "onSessionResumeFailed")
 
             castState.onSessionLost()
+            notifyCastStateChanged()
         }
 
         override fun onSessionSuspended(session: Session, i: Int) {
             Log.i(TAG, "onSessionSuspended")
 
             castState.onSessionLost()
+            notifyCastStateChanged()
         }
 
         override fun onSessionEnded(session: Session, error: Int) {
             Log.i(TAG, "onSessionEnded")
 
             castState.onSessionLost()
+            notifyCastStateChanged()
         }
 
         override fun onSessionResuming(session: Session, s: String) {

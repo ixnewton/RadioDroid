@@ -15,7 +15,6 @@ import androidx.fragment.app.Fragment;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import androidx.preference.PreferenceManager;
 
-import net.programmierecke.radiodroid2.CastHandler;
 import net.programmierecke.radiodroid2.history.TrackHistoryRepository;
 import net.programmierecke.radiodroid2.players.mpd.MPDClient;
 import net.programmierecke.radiodroid2.players.PlayState;
@@ -45,6 +44,8 @@ public class FragmentPlayerSmall extends Fragment {
     private Callback callback;
 
     private Role role = Role.PLAYER;
+    
+    private CastHandler.CastStateChangeListener castStateChangeListener;
 
     private TextView textViewStationName;
     private TextView textViewLiveInfo;
@@ -154,6 +155,18 @@ public class FragmentPlayerSmall extends Fragment {
 
         LocalBroadcastManager.getInstance(requireContext()).registerReceiver(updateUIReceiver, filter);
 
+        // Set up Cast state change listener to update UI when Cast state changes
+        RadioDroidApp radioDroidApp = (RadioDroidApp) requireActivity().getApplication();
+        castStateChangeListener = new CastHandler.CastStateChangeListener() {
+            @Override
+            public void onCastStateChanged() {
+                if (getActivity() != null) {
+                    getActivity().runOnUiThread(() -> fullUpdate());
+                }
+            }
+        };
+        radioDroidApp.getCastHandler().setCastStateChangeListener(castStateChangeListener);
+
         fullUpdate();
     }
 
@@ -162,6 +175,13 @@ public class FragmentPlayerSmall extends Fragment {
         super.onPause();
 
         LocalBroadcastManager.getInstance(requireContext()).unregisterReceiver(updateUIReceiver);
+        
+        // Remove Cast state change listener
+        if (castStateChangeListener != null) {
+            RadioDroidApp radioDroidApp = (RadioDroidApp) requireActivity().getApplication();
+            radioDroidApp.getCastHandler().setCastStateChangeListener(null);
+            castStateChangeListener = null;
+        }
     }
 
     @Override
@@ -232,38 +252,34 @@ public class FragmentPlayerSmall extends Fragment {
 
     private void fullUpdate() {
         PlayState currentState = PlayerServiceUtil.getPlayerState();
-        
-        // Check if we're actively casting
         RadioDroidApp radioDroidApp = (RadioDroidApp) requireActivity().getApplication();
-        CastHandler castHandler = radioDroidApp.getCastHandler();
-        boolean isCasting = castHandler.isCasting();
-        boolean isCastConnected = castHandler.isCastConnected();
+        boolean isCasting = radioDroidApp.getCastHandler().isCasting();
         
-        // If we're casting, show pause icon regardless of local player state
-        if (isCasting || (isCastConnected && currentState == PlayState.Paused)) {
-            buttonPlay.setImageResource(R.drawable.ic_pause_circle);
-            buttonPlay.setContentDescription(getResources().getString(R.string.detail_pause));
-        } else {
-            switch (currentState) {
-                case Playing:
+        // Update play button based on state and Cast status
+        switch (currentState) {
+            case Playing:
+                if (isCasting) {
+                    // Show Cast icon when casting and playing
+                    buttonPlay.setImageResource(R.drawable.ic_cast_white_24dp);
+                } else {
                     buttonPlay.setImageResource(R.drawable.ic_pause_circle);
-                    buttonPlay.setContentDescription(getResources().getString(R.string.detail_pause));
-                    break;
-                case PrePlaying:
-                    // Show pause icon during buffering/loading since user can pause
-                    buttonPlay.setImageResource(R.drawable.ic_pause_circle);
-                    buttonPlay.setContentDescription(getResources().getString(R.string.detail_pause));
-                    break;
-                case Paused:
-                    buttonPlay.setImageResource(R.drawable.ic_play_circle);
-                    buttonPlay.setContentDescription(getResources().getString(R.string.detail_play));
-                    break;
-                case Idle:
-                default:
-                    buttonPlay.setImageResource(R.drawable.ic_play_circle);
-                    buttonPlay.setContentDescription(getResources().getString(R.string.detail_play));
-                    break;
-            }
+                }
+                buttonPlay.setContentDescription(getResources().getString(R.string.detail_pause));
+                break;
+            case PrePlaying:
+                // Show loading animation during buffering/loading
+                buttonPlay.setImageResource(R.drawable.loading_animation);
+                buttonPlay.setContentDescription(getResources().getString(R.string.detail_pause));
+                break;
+            case Paused:
+                buttonPlay.setImageResource(R.drawable.ic_play_circle);
+                buttonPlay.setContentDescription(getResources().getString(R.string.detail_play));
+                break;
+            case Idle:
+            default:
+                buttonPlay.setImageResource(R.drawable.ic_play_circle);
+                buttonPlay.setContentDescription(getResources().getString(R.string.detail_play));
+                break;
         }
 
         DataRadioStation station = Utils.getCurrentOrLastStation(requireContext());

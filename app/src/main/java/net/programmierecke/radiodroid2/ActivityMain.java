@@ -504,6 +504,9 @@ public class ActivityMain extends AppCompatActivity implements SearchView.OnQuer
         CastHandler castHandler = ((RadioDroidApp) getApplication()).getCastHandler();
         castHandler.onPause();
         castHandler.setActivity(null);
+        
+        // Remove Cast state change listener
+        castHandler.setCastStateChangeListener(null);
     }
 
     private void handleIntent(@NonNull Intent intent) {
@@ -566,6 +569,22 @@ public class ActivityMain extends AppCompatActivity implements SearchView.OnQuer
         CastHandler castHandler = ((RadioDroidApp) getApplication()).getCastHandler();
         castHandler.onResume();
         castHandler.setActivity(this);
+        
+        // Set up Cast state change listener to refresh menu when Cast connects/disconnects
+        castHandler.setCastStateChangeListener(new CastHandler.CastStateChangeListener() {
+            @Override
+            public void onCastStateChanged() {
+                runOnUiThread(() -> {
+                    invalidateOptionsMenu();
+                    if (BuildConfig.DEBUG) {
+                        Log.d(TAG, "Cast state changed - menu refreshed");
+                    }
+                });
+            }
+        });
+        
+        // Invalidate menu to ensure Cast button appears if framework becomes ready
+        invalidateOptionsMenu();
 
         if (playerBottomSheet.getState() == BottomSheetBehavior.STATE_EXPANDED) {
             appBarLayout.setExpanded(false);
@@ -708,8 +727,127 @@ public class ActivityMain extends AppCompatActivity implements SearchView.OnQuer
  */
         }
 
-        ((RadioDroidApp) getApplication()).getCastHandler().getRouteItem(getApplicationContext(), menu);
+        // Set up Cast functionality - replace placeholder with real Cast button when framework ready
+        setupCastButton(menu);
 
+        return true;
+    }
+
+    private void setupCastButton(Menu menu) {
+        CastHandler castHandler = ((RadioDroidApp) getApplication()).getCastHandler();
+        MenuItem placeholder = menu.findItem(R.id.cast_placeholder);
+        MenuItem realCastItem = menu.findItem(R.id.media_route_menu_item);
+        
+        boolean frameworkReady = castHandler.isCastAvailable();
+        boolean devicesAvailable = frameworkReady && castHandler.hasAvailableDevices(getApplicationContext());
+        
+        if (frameworkReady && devicesAvailable) {
+            // Cast framework ready AND devices available - show white Cast button
+            if (placeholder != null) {
+                placeholder.setVisible(false);
+            }
+            if (realCastItem != null) {
+                realCastItem.setVisible(true);
+            }
+            castHandler.getRouteItem(getApplicationContext(), menu);
+            
+            if (BuildConfig.DEBUG) {
+                Log.d(TAG, "Cast devices available - showing white Cast button");
+            }
+        } else {
+            // No devices available or framework not ready - show grey placeholder
+            if (placeholder != null) {
+                placeholder.setVisible(true);
+                placeholder.setOnMenuItemClickListener(item -> {
+                    // Show Cast device selection dialog
+                    showCastDeviceDialog();
+                    return true;
+                });
+            }
+            if (realCastItem != null) {
+                realCastItem.setVisible(false);
+            }
+            
+            if (BuildConfig.DEBUG) {
+                Log.d(TAG, "Cast framework ready: " + frameworkReady + ", devices available: " + devicesAvailable + " - showing grey placeholder");
+            }
+        }
+    }
+
+    private void showCastDeviceDialog() {
+        CastHandler castHandler = ((RadioDroidApp) getApplication()).getCastHandler();
+        
+        // Try to initialize Cast framework if not ready
+        if (!castHandler.isCastAvailable()) {
+            castHandler.onCreate(getApplicationContext());
+            
+            // Give framework a moment to initialize, then try again
+            new android.os.Handler().postDelayed(() -> {
+                if (castHandler.isCastAvailable()) {
+                    // Framework now ready - refresh menu and show dialog
+                    invalidateOptionsMenu();
+                    showCastDeviceDialogInternal();
+                } else {
+                    // Framework still not ready - show message
+                    showCastNotAvailableMessage();
+                }
+            }, 1500);
+        } else {
+            // Framework ready - show dialog immediately
+            showCastDeviceDialogInternal();
+        }
+    }
+    
+    private void showCastDeviceDialogInternal() {
+        try {
+            // Use MediaRouter to show Cast device selection dialog
+            androidx.mediarouter.media.MediaRouter mediaRouter = androidx.mediarouter.media.MediaRouter.getInstance(this);
+            androidx.mediarouter.app.MediaRouteChooserDialog dialog = 
+                new androidx.mediarouter.app.MediaRouteChooserDialog(this);
+            
+            // Set up route selector for Cast devices
+            androidx.mediarouter.media.MediaRouteSelector.Builder builder = 
+                new androidx.mediarouter.media.MediaRouteSelector.Builder();
+            builder.addControlCategory(com.google.android.gms.cast.CastMediaControlIntent.categoryForCast(
+                ((RadioDroidApp) getApplication()).getCastHandler().getCastAppId()));
+            dialog.setRouteSelector(builder.build());
+            
+            // Add listener to detect when dialog is dismissed
+            dialog.setOnDismissListener(dialogInterface -> {
+                // Refresh menu after dialog is dismissed to update Cast button state
+                new android.os.Handler().postDelayed(() -> {
+                    invalidateOptionsMenu();
+                    if (BuildConfig.DEBUG) {
+                        Log.d(TAG, "Cast dialog dismissed - menu refreshed");
+                    }
+                }, 500);
+            });
+            
+            dialog.show();
+            
+            if (BuildConfig.DEBUG) {
+                Log.d(TAG, "Cast device chooser dialog shown");
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "Failed to show Cast device dialog: " + e.getMessage());
+            showCastNotAvailableMessage();
+        }
+    }
+    
+    private void showCastNotAvailableMessage() {
+        android.widget.Toast.makeText(this, "Cast devices not available", android.widget.Toast.LENGTH_SHORT).show();
+        if (BuildConfig.DEBUG) {
+            Log.d(TAG, "Cast not available - showing toast message");
+        }
+    }
+
+    @Override
+    public boolean onPrepareOptionsMenu(Menu menu) {
+        super.onPrepareOptionsMenu(menu);
+        
+        // Check if we need to swap placeholder with real Cast button
+        setupCastButton(menu);
+        
         return true;
     }
 

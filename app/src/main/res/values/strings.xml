@@ -104,6 +104,8 @@
     <string name="settings_grid_columns_portrait_desc">Number of columns in portrait mode</string>
     <string name="settings_grid_columns_landscape">Grid columns (Landscape)</string>
     <string name="settings_grid_columns_landscape_desc">Number of columns in landscape mode</string>
+    <string name="settings_android_auto_icon_size">Android Auto grid columns</string>
+    <string name="settings_android_auto_icon_size_desc">Number of columns in Android Auto grid view</string>
 
     <string name="settings_interaction">Interaction</string>
     <string name="settings_single_use_tags">Show rarely-used tags</string>

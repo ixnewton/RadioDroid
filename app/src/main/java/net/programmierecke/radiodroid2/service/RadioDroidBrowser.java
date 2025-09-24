@@ -126,6 +126,9 @@ public class RadioDroidBrowser {
                 };
                 imageLoadTargets.add(imageLoadTarget);
 
+                // Use full-size icons for Android Auto - let MediaPlayer handle display sizing
+                android.util.Log.d("RadioDroidBrowser", "Loading Android Auto icon at full resolution (128px)");
+                
                 Picasso.get().load((!station.hasIcon() ? resourceToUri(resources, R.drawable.ic_launcher).toString() : station.IconUrl))
                         .transform(new CropSquareTransformation())
                         .error(R.drawable.ic_launcher)
@@ -204,14 +207,17 @@ public class RadioDroidBrowser {
                             extras.putInt(MediaConstants.DESCRIPTION_EXTRAS_KEY_CONTENT_STYLE_SINGLE_ITEM,
                                     MediaConstants.DESCRIPTION_EXTRAS_VALUE_CONTENT_STYLE_GRID_ITEM);
                             
-                            // Force 3 columns to match Android Auto standard for media apps
-                            extras.putInt("android.media.browse.CONTENT_STYLE_GRID_COLUMNS", 3);
+                            // Set Android Auto grid columns based on user preference
+                            int gridColumns = Integer.parseInt(sharedPref.getString("android_auto_icon_size", "3"));
+                            extras.putInt("android.media.browse.CONTENT_STYLE_GRID_COLUMNS", gridColumns);
+                            
+                            android.util.Log.d("RadioDroidBrowser", "Android Auto grid columns: " + gridColumns);
                             
                             if (isCurrentlyPlaying) {
-                                android.util.Log.i("RadioDroidBrowser", "Setting Android Auto to GRID view (3 columns) for CURRENTLY PLAYING station: " + station.Name);
+                                android.util.Log.i("RadioDroidBrowser", "Setting Android Auto to GRID view (" + gridColumns + " columns) for CURRENTLY PLAYING station: " + station.Name);
                                 extras.putString("android.media.browse.CONTENT_STYLE_PLAYING_INDICATOR", "true");
                             } else {
-                                android.util.Log.i("RadioDroidBrowser", "Setting Android Auto to GRID view (3 columns) for station: " + station.Name);
+                                android.util.Log.i("RadioDroidBrowser", "Setting Android Auto to GRID view (" + gridColumns + " columns) for station: " + station.Name);
                             }
                         } else {
                             // Use list layout for list view
@@ -274,6 +280,10 @@ public class RadioDroidBrowser {
             extras.putBoolean("android.media.browse.CONTENT_STYLE_SUPPORTED", true);
             extras.putInt("android.media.browse.CONTENT_STYLE_BROWSABLE_HINT", 2); // GRID style
             extras.putInt("android.media.browse.CONTENT_STYLE_PLAYABLE_HINT", 1);  // LIST style
+            
+            // Use full-size media art for optimal quality
+            extras.putInt(MediaConstants.BROWSER_ROOT_HINTS_KEY_MEDIA_ART_SIZE_PIXELS, 128);
+            android.util.Log.d("RadioDroidBrowser", "Android Auto media art size hint: 128px (full resolution)");
             
             // Add hint to show favorites as default view
             extras.putString("android.media.browse.DEFAULT_TAB", MEDIA_ID_MUSICS_FAVORITE);

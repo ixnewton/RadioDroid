@@ -52,6 +52,14 @@
             android:title="@string/settings_grid_columns_landscape"
             android:summary="%s" />
 
+        <ListPreference
+            android:defaultValue="3"
+            android:entries="@array/android_auto_icon_size_entries"
+            android:entryValues="@array/android_auto_icon_size_values"
+            android:key="android_auto_icon_size"
+            android:title="@string/settings_android_auto_icon_size"
+            android:summary="%s" />
+
     </PreferenceScreen>
 
     <PreferenceScreen android:title="@string/settings_startup_behaviour"

@@ -93,4 +93,17 @@
         <item>10</item>
     </string-array>
 
+    <string-array name="android_auto_icon_size_entries" translatable="false">
+        <item>2 columns (Large icons)</item>
+        <item>3 columns (Medium icons)</item>
+        <item>4 columns (Small icons)</item>
+        <item>5 columns (Tiny icons)</item>
+    </string-array>
+    <string-array name="android_auto_icon_size_values" translatable="false">
+        <item>2</item>
+        <item>3</item>
+        <item>4</item>
+        <item>5</item>
+    </string-array>
+
 </resources>

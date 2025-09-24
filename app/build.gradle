@@ -137,9 +137,11 @@ android {
     productFlavors {
         play {
             dimension "one"
+            // Uses same libraries as free version now
         }
         free {
             dimension "one"
+            // Now includes Cast libraries and uses signing configuration
         }
     }
     lint {

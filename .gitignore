@@ -56,3 +56,4 @@ build/*
 .DS_Store
 
 *.aab
+app/src/main/java/net/programmierecke/radiodroid2/RadioDroid.code-workspace

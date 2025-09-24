@@ -152,6 +152,14 @@ private class CastAvailable(val castContext: CastContext,
         // Determine content type with Google Home compatibility
         val contentType = getGoogleHomeCompatibleContentType(streamUrl)
         Log.i(TAG, "Content type for Google Home: $contentType")
+        
+        // Log native M3U8 handling
+        if (streamUrl.contains(".m3u8", ignoreCase = true)) {
+            Log.i(TAG, "🎵 ✅ M3U8/HLS stream detected - using NATIVE Cast support")
+            Log.i(TAG, "📡 Cast device will handle HLS segmentation and adaptive streaming")
+            Log.i(TAG, "⚡ No transcoding needed - optimal performance and quality")
+            Log.i(TAG, "🔄 Adaptive bitrate streaming will adjust to network conditions")
+        }
 
         val mediaInfo = MediaInfo.Builder(streamUrl)
                 .setStreamType(MediaInfo.STREAM_TYPE_LIVE)
@@ -311,8 +319,12 @@ private class CastAvailable(val castContext: CastContext,
     
     private fun getGoogleHomeCompatibleContentType(url: String): String {
         return when {
-            // Google Home prefers specific MIME types
-            url.contains(".m3u8", ignoreCase = true) -> "application/vnd.apple.mpegurl"
+            // M3U8/HLS - Native Cast support with adaptive streaming
+            url.contains(".m3u8", ignoreCase = true) -> {
+                Log.i(TAG, "🎵 M3U8/HLS detected - Cast will handle natively with adaptive streaming")
+                "application/vnd.apple.mpegurl"
+            }
+            // Standard audio formats
             url.contains(".mp3", ignoreCase = true) -> "audio/mpeg"
             url.contains(".aac", ignoreCase = true) -> "audio/aac"
             url.contains(".ogg", ignoreCase = true) -> "audio/ogg"

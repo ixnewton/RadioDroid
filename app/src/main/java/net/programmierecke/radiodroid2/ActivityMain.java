@@ -738,6 +738,21 @@ public class ActivityMain extends AppCompatActivity implements SearchView.OnQuer
         MenuItem placeholder = menu.findItem(R.id.cast_placeholder);
         MenuItem realCastItem = menu.findItem(R.id.media_route_menu_item);
         
+        // Hide Cast button in Settings and Alarm sections
+        if (selectedMenuItem == R.id.nav_item_settings || selectedMenuItem == R.id.nav_item_alarm) {
+            if (placeholder != null) {
+                placeholder.setVisible(false);
+            }
+            if (realCastItem != null) {
+                realCastItem.setVisible(false);
+            }
+            
+            if (BuildConfig.DEBUG) {
+                Log.d(TAG, "Cast button hidden in Settings/Alarm section");
+            }
+            return;
+        }
+        
         boolean frameworkReady = castHandler.isCastAvailable();
         boolean devicesAvailable = frameworkReady && castHandler.hasAvailableDevices(getApplicationContext());
         
@@ -748,14 +763,15 @@ public class ActivityMain extends AppCompatActivity implements SearchView.OnQuer
             }
             if (realCastItem != null) {
                 realCastItem.setVisible(true);
+                castHandler.getRouteItem(getApplicationContext(), menu);
             }
-            castHandler.getRouteItem(getApplicationContext(), menu);
             
             if (BuildConfig.DEBUG) {
-                Log.d(TAG, "Cast devices available - showing white Cast button");
+                Log.d(TAG, "Cast framework ready: " + frameworkReady + ", devices available: " + devicesAvailable + " - showing white Cast button");
             }
         } else {
-            // No devices available or framework not ready - show grey placeholder
+            // Cast framework not ready OR no devices available - show grey placeholder
+            // This ensures the icon reverts to grey when Cast is cancelled/disconnected
             if (placeholder != null) {
                 placeholder.setVisible(true);
                 placeholder.setOnMenuItemClickListener(item -> {

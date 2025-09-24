@@ -37,7 +37,33 @@ public class GetRealLinkAndPlayTask extends AsyncTask<Void, Void, String> {
     protected String doInBackground(Void... params) {
         Context context = contextRef.get();
         if (context != null) {
-            return Utils.getRealStationLink(httpClient, context.getApplicationContext(), station.StationUuid);
+            android.util.Log.i("GetRealLinkAndPlayTask", "Resolving stream URL for station: " + station.Name + " (UUID: " + station.StationUuid + ")");
+            
+            // Check if this is an m3u8 stream
+            boolean isM3u8Stream = station.StreamUrl != null && Utils.urlIndicatesHlsStream(station.StreamUrl);
+            if (isM3u8Stream) {
+                android.util.Log.i("GetRealLinkAndPlayTask", "🎵 M3U8/HLS stream detected: " + station.StreamUrl);
+            }
+            
+            String resolvedUrl = Utils.getRealStationLink(httpClient, context.getApplicationContext(), station.StationUuid);
+            
+            if (resolvedUrl != null) {
+                android.util.Log.i("GetRealLinkAndPlayTask", "✅ Stream URL resolved successfully: " + resolvedUrl);
+                if (isM3u8Stream) {
+                    android.util.Log.i("GetRealLinkAndPlayTask", "🎵 M3U8/HLS stream resolved - ready for native HLS playback");
+                }
+                return resolvedUrl;
+            } else {
+                android.util.Log.w("GetRealLinkAndPlayTask", "❌ Failed to resolve stream URL from RadioBrowser API");
+                
+                // For m3u8 streams, try using the original URL as fallback
+                if (isM3u8Stream && station.StreamUrl != null && !station.StreamUrl.isEmpty()) {
+                    android.util.Log.i("GetRealLinkAndPlayTask", "🔄 M3U8 fallback: Using original URL directly: " + station.StreamUrl);
+                    return station.StreamUrl;
+                }
+                
+                android.util.Log.e("GetRealLinkAndPlayTask", "❌ No fallback available for station: " + station.Name);
+            }
         }
 
         return null;
@@ -47,9 +73,19 @@ public class GetRealLinkAndPlayTask extends AsyncTask<Void, Void, String> {
     protected void onPostExecute(String result) {
         IPlayerService playerService = playerServiceRef.get();
         Context context = contextRef.get();
+        
         if (result != null && playerService != null && context != null && !isCancelled()) {
             try {
                 station.playableUrl = result;
+                
+                // Check if this is an m3u8 stream for logging
+                boolean isM3u8Stream = Utils.urlIndicatesHlsStream(result);
+                if (isM3u8Stream) {
+                    android.util.Log.i("GetRealLinkAndPlayTask", "🎵 Starting M3U8/HLS playback for: " + station.Name);
+                    android.util.Log.i("GetRealLinkAndPlayTask", "🎵 M3U8 URL: " + result);
+                } else {
+                    android.util.Log.i("GetRealLinkAndPlayTask", "▶️ Starting playback for: " + station.Name);
+                }
                 
                 // Add station to history when played from Android Auto (same as PlayStationTask)
                 RadioDroidApp radioDroidApp = (RadioDroidApp) context.getApplicationContext();
@@ -70,8 +106,23 @@ public class GetRealLinkAndPlayTask extends AsyncTask<Void, Void, String> {
                 
                 playerService.SetStation(station);
                 playerService.Play(false);
+                
+                android.util.Log.i("GetRealLinkAndPlayTask", "✅ Playback initiated successfully for: " + station.Name);
+                
             } catch (RemoteException e) {
+                android.util.Log.e("GetRealLinkAndPlayTask", "❌ Failed to start playback for: " + station.Name + " - " + e.getMessage());
                 e.printStackTrace();
+            }
+        } else {
+            // Handle the case where URL resolution failed
+            if (result == null) {
+                android.util.Log.e("GetRealLinkAndPlayTask", "❌ Cannot start playback - URL resolution failed for: " + (station != null ? station.Name : "unknown station"));
+            } else if (playerService == null) {
+                android.util.Log.e("GetRealLinkAndPlayTask", "❌ Cannot start playback - PlayerService not available");
+            } else if (context == null) {
+                android.util.Log.e("GetRealLinkAndPlayTask", "❌ Cannot start playback - Context not available");
+            } else if (isCancelled()) {
+                android.util.Log.i("GetRealLinkAndPlayTask", "⏹️ Playback cancelled for: " + (station != null ? station.Name : "unknown station"));
             }
         }
         super.onPostExecute(result);

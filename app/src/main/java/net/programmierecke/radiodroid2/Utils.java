@@ -231,17 +231,29 @@ public class Utils {
     }
 
     public static String getRealStationLink(OkHttpClient httpClient, Context ctx, String stationId) {
-        Log.i("UTIL", "StationUUID:" + stationId);
+        Log.i("UTIL", "Resolving real station link for UUID: " + stationId);
         String result = Utils.downloadFeedRelative(httpClient, ctx, "json/url/" + stationId, true, null);
         if (result != null) {
-            Log.i("UTIL", result);
+            Log.i("UTIL", "RadioBrowser API response: " + result);
             JSONObject jsonObj;
             try {
                 jsonObj = new JSONObject(result);
-                return jsonObj.getString("url");
+                String resolvedUrl = jsonObj.getString("url");
+                
+                // Log if this is an m3u8 stream
+                if (urlIndicatesHlsStream(resolvedUrl)) {
+                    Log.i("UTIL", "🎵 M3U8/HLS stream resolved: " + resolvedUrl);
+                } else {
+                    Log.i("UTIL", "✅ Stream URL resolved: " + resolvedUrl);
+                }
+                
+                return resolvedUrl;
             } catch (Exception e) {
-                Log.e("UTIL", "getRealStationLink() " + e);
+                Log.e("UTIL", "❌ Failed to parse RadioBrowser API response for UUID " + stationId + ": " + e.getMessage());
+                Log.e("UTIL", "Raw response was: " + result);
             }
+        } else {
+            Log.w("UTIL", "❌ RadioBrowser API returned null response for UUID: " + stationId);
         }
         return null;
     }

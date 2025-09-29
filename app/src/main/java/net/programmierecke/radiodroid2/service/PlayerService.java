@@ -616,6 +616,17 @@ public class PlayerService extends JobIntentService implements RadioPlayer.Playe
 
     public void setStation(DataRadioStation station) {
         this.currentStation = station;
+        
+        // Clear old icon when station changes to prevent showing wrong icon in Android Auto
+        if (station != null) {
+            android.util.Log.d(TAG, "Station changed to: " + station.Name + " - clearing old icon");
+            // Reset to default icon immediately to avoid showing previous station's icon
+            radioIcon = ((BitmapDrawable) ResourcesCompat.getDrawable(getResources(), R.drawable.ic_launcher, null));
+            
+            // Immediately update MediaSession metadata for Android Auto with default icon
+            // This prevents the old station's icon from showing in the player view
+            updateMediaSessionMetadata();
+        }
     }
 
     public void playCurrentStation(final boolean isAlarm) {
@@ -722,6 +733,10 @@ public class PlayerService extends JobIntentService implements RadioPlayer.Playe
             }
 
             if (station != null) {
+                // Android Auto startup case: Ensure station icon is properly loaded when resuming
+                // This handles the case where AA shows RadioDroid in mini-player with last station
+                android.util.Log.d(TAG, "Resume: Ensuring station icon is loaded for Android Auto - Station: " + station.Name);
+                
                 if (bypassMeteredConnectionWarning) {
                     startMeteredConnectionListener();
                     acquireAudioFocus();
@@ -1056,21 +1071,66 @@ public class PlayerService extends JobIntentService implements RadioPlayer.Playe
         }
     }
 
+    /**
+     * Update MediaSession metadata specifically for Android Auto icon refresh
+     * This ensures the player view shows the correct station icon immediately
+     */
+    private void updateMediaSessionMetadata() {
+        if (mediaSession == null || currentStation == null) {
+            return;
+        }
+        
+        android.util.Log.d(TAG, "Updating MediaSession metadata for Android Auto - Station: " + currentStation.Name);
+        
+        MediaMetadataCompat.Builder metadataBuilder = new MediaMetadataCompat.Builder();
+        metadataBuilder.putString(MediaMetadataCompat.METADATA_KEY_TITLE, currentStation.Name);
+        metadataBuilder.putString(MediaMetadataCompat.METADATA_KEY_ALBUM, currentStation.Name);
+        
+        // Use current live info if available
+        if (liveInfo != null) {
+            if (liveInfo.hasArtistAndTrack()) {
+                metadataBuilder.putString(MediaMetadataCompat.METADATA_KEY_ARTIST, liveInfo.getArtist());
+                metadataBuilder.putString(MediaMetadataCompat.METADATA_KEY_TITLE, liveInfo.getTrack());
+            } else if (liveInfo.getTitle() != null && !liveInfo.getTitle().isEmpty()) {
+                metadataBuilder.putString(MediaMetadataCompat.METADATA_KEY_TITLE, liveInfo.getTitle());
+                metadataBuilder.putString(MediaMetadataCompat.METADATA_KEY_ARTIST, currentStation.Name);
+            } else {
+                metadataBuilder.putString(MediaMetadataCompat.METADATA_KEY_ARTIST, currentStation.Name);
+            }
+        } else {
+            metadataBuilder.putString(MediaMetadataCompat.METADATA_KEY_ARTIST, currentStation.Name);
+        }
+        
+        // Set the current icon (either default or loaded station icon)
+        if (radioIcon != null) {
+            metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, radioIcon.getBitmap());
+            metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON, radioIcon.getBitmap());
+        }
+        
+        mediaSession.setMetadata(metadataBuilder.build());
+        android.util.Log.d(TAG, "MediaSession metadata updated for Android Auto icon refresh");
+    }
+
     private void downloadRadioIcon() {
         final float px = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 70, getResources().getDisplayMetrics());
 
         if (!currentStation.hasIcon()) {
+            android.util.Log.d(TAG, "Station has no icon - using default launcher icon");
             radioIcon = (BitmapDrawable) ResourcesCompat.getDrawable(getResources(), R.drawable.ic_launcher, null);
             updateNotification();
+            updateMediaSessionMetadata(); // Ensure MediaSession is updated for Android Auto
             return;
         }
 
+        android.util.Log.d(TAG, "Loading station icon for: " + currentStation.Name + " from: " + currentStation.IconUrl);
+        
         Picasso.get()
                 .load(currentStation.IconUrl)
                 .resize((int) px, 0)
                 .into(new Target() {
                     @Override
                     public void onBitmapLoaded(Bitmap bitmap, Picasso.LoadedFrom from) {
+                        android.util.Log.d(TAG, "Station icon loaded successfully for: " + currentStation.Name);
                         final boolean useCircularIcons = Utils.useCircularIcons(itsContext);
                         if (!useCircularIcons)
                             radioIcon = new BitmapDrawable(getResources(), bitmap);
@@ -1081,16 +1141,20 @@ public class PlayerService extends JobIntentService implements RadioPlayer.Playe
                             radioIcon = new BitmapDrawable(getResources(), rb.getBitmap());
                         }
                         updateNotification();
+                        updateMediaSessionMetadata(); // Critical: Update MediaSession for Android Auto icon refresh
                     }
 
                     @Override
                     public void onBitmapFailed(Exception e, Drawable errorDrawable) {
-
+                        android.util.Log.w(TAG, "Failed to load station icon for: " + currentStation.Name + " - " + e.getMessage());
+                        // Keep using the default icon that was set in setStation()
+                        updateNotification();
+                        updateMediaSessionMetadata(); // Ensure MediaSession is updated even on failure
                     }
 
                     @Override
                     public void onPrepareLoad(Drawable placeHolderDrawable) {
-
+                        android.util.Log.d(TAG, "Preparing to load station icon for: " + currentStation.Name);
                     }
                 });
     }
